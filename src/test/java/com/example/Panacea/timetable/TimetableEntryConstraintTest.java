@@ -6,12 +6,14 @@ import com.example.Panacea.academic.entity.Semester;
 import com.example.Panacea.academic.entity.Subject;
 import com.example.Panacea.identity.entity.Role;
 import com.example.Panacea.identity.entity.User;
+import com.example.Panacea.testsupport.AbstractPostgresContainerTest;
 import com.example.Panacea.timetable.entity.TimetableEntry;
 import com.example.Panacea.timetable.repository.TimetableEntryRepository;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.TestPropertySource;
 
@@ -22,11 +24,14 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 /**
  * Validates the core safety net of the timetable engine: even if application-level
  * scheduling logic has a bug, the database itself must reject a staff member being
- * double-booked into the same (day, period) slot.
+ * double-booked into the same (day, period) slot. Runs against a real containerized
+ * Postgres instance (see AbstractPostgresContainerTest) rather than an in-memory database,
+ * so the constraint is verified against the same engine used in production.
  */
 @DataJpaTest
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @TestPropertySource(properties = "spring.jpa.hibernate.ddl-auto=create-drop")
-class TimetableEntryConstraintTest {
+class TimetableEntryConstraintTest extends AbstractPostgresContainerTest {
 
     @Autowired
     private TimetableEntryRepository timetableEntryRepository;

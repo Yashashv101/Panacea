@@ -1,12 +1,11 @@
 package com.example.Panacea;
 
+import com.example.Panacea.testsupport.AbstractPostgresContainerTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest
-@ActiveProfiles("test")
-class PanaceaApplicationTests {
+class PanaceaApplicationTests extends AbstractPostgresContainerTest {
 
 	@Test
 	void contextLoads() {

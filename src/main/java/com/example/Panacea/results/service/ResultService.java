@@ -6,6 +6,7 @@ import com.example.Panacea.academic.repository.SemesterRepository;
 import com.example.Panacea.academic.repository.SubjectRepository;
 import com.example.Panacea.identity.entity.User;
 import com.example.Panacea.identity.repository.UserRepository;
+import com.example.Panacea.notifications.service.NotificationEventPublisher;
 import com.example.Panacea.results.dto.StudentResultResponse;
 import com.example.Panacea.results.dto.UpsertResultRequest;
 import com.example.Panacea.results.entity.StudentResult;
@@ -25,6 +26,7 @@ public class ResultService {
     private final SubjectRepository subjectRepository;
     private final SemesterRepository semesterRepository;
     private final StudentResultRepository studentResultRepository;
+    private final NotificationEventPublisher notificationEventPublisher;
 
     @Transactional
     public StudentResultResponse upsertResult(UpsertResultRequest request) {
@@ -49,7 +51,12 @@ public class ResultService {
         result.setExperiential(request.experiential());
         result.setSee(request.see());
 
-        return StudentResultResponse.from(studentResultRepository.save(result));
+        StudentResult saved = studentResultRepository.save(result);
+
+        notificationEventPublisher.publish(saved.getStudent().getId(),
+                "Your result for " + saved.getSubject().getName() + " has been published.");
+
+        return StudentResultResponse.from(saved);
     }
 
     @Transactional(readOnly = true)

@@ -13,6 +13,7 @@ import com.example.Panacea.attendance.repository.AttendanceReportRepository;
 import com.example.Panacea.attendance.repository.AttendanceRepository;
 import com.example.Panacea.identity.entity.User;
 import com.example.Panacea.identity.repository.UserRepository;
+import com.example.Panacea.notifications.service.NotificationEventPublisher;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -34,6 +35,7 @@ public class AttendanceService {
     private final UserRepository userRepository;
     private final AttendanceRepository attendanceRepository;
     private final AttendanceReportRepository attendanceReportRepository;
+    private final NotificationEventPublisher notificationEventPublisher;
 
     @Transactional
     public AttendanceResponse markAttendance(MarkAttendanceRequest request, Long staffId) {
@@ -64,6 +66,10 @@ public class AttendanceService {
                 })
                 .toList();
         attendanceReportRepository.saveAll(reports);
+
+        reports.forEach(report -> notificationEventPublisher.publish(report.getStudent().getId(),
+                "Attendance for " + subject.getName() + " on " + request.date()
+                        + " marked as " + (report.isPresent() ? "present" : "absent") + "."));
 
         return AttendanceResponse.from(attendance, reports.size());
     }

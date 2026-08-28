@@ -6,6 +6,7 @@ import Login from "./pages/Login";
 import Placeholder from "./pages/Placeholder";
 import Users from "./pages/admin/Users";
 import AcademicStructure from "./pages/admin/AcademicStructure";
+import TimetableGeneration from "./pages/admin/TimetableGeneration";
 
 export default function App() {
   return (
@@ -40,6 +41,14 @@ export default function App() {
             element={
               <ProtectedRoute allowedRoles={["ADMIN"]}>
                 <AcademicStructure />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/timetable"
+            element={
+              <ProtectedRoute allowedRoles={["ADMIN"]}>
+                <TimetableGeneration />
               </ProtectedRoute>
             }
           />

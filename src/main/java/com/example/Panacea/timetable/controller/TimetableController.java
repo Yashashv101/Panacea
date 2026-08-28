@@ -34,11 +34,11 @@ public class TimetableController {
 
     @GetMapping("/section/{sectionId}")
     public List<TimetableEntryResponse> findBySection(@PathVariable Long sectionId) {
-        return timetableService.findBySection(sectionId).stream().map(TimetableEntryResponse::from).toList();
+        return timetableService.findBySection(sectionId);
     }
 
     @GetMapping("/staff/{staffId}")
     public List<TimetableEntryResponse> findByStaff(@PathVariable Long staffId) {
-        return timetableService.findByStaff(staffId).stream().map(TimetableEntryResponse::from).toList();
+        return timetableService.findByStaff(staffId);
     }
 }

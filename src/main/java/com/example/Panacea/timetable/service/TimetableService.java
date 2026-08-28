@@ -10,6 +10,7 @@ import com.example.Panacea.audit.service.AuditLogService;
 import com.example.Panacea.identity.entity.User;
 import com.example.Panacea.identity.repository.UserRepository;
 import com.example.Panacea.timetable.dto.GenerateTimetableRequest;
+import com.example.Panacea.timetable.dto.TimetableEntryResponse;
 import com.example.Panacea.timetable.dto.TimetableGenerationResponse;
 import com.example.Panacea.timetable.entity.TimetableEntry;
 import com.example.Panacea.timetable.repository.TimetableEntryRepository;
@@ -57,13 +58,15 @@ public class TimetableService {
     private final AuditLogService auditLogService;
 
     @Transactional(readOnly = true)
-    public List<TimetableEntry> findBySection(Long sectionId) {
-        return timetableEntryRepository.findBySectionIdOrderByDayAscPeriodAsc(sectionId);
+    public List<TimetableEntryResponse> findBySection(Long sectionId) {
+        return timetableEntryRepository.findBySectionIdOrderByDayAscPeriodAsc(sectionId)
+                .stream().map(TimetableEntryResponse::from).toList();
     }
 
     @Transactional(readOnly = true)
-    public List<TimetableEntry> findByStaff(Long staffId) {
-        return timetableEntryRepository.findByStaffIdOrderByDayAscPeriodAsc(staffId);
+    public List<TimetableEntryResponse> findByStaff(Long staffId) {
+        return timetableEntryRepository.findByStaffIdOrderByDayAscPeriodAsc(staffId)
+                .stream().map(TimetableEntryResponse::from).toList();
     }
 
     @Transactional

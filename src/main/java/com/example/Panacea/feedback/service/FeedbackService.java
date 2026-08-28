@@ -43,10 +43,21 @@ public class FeedbackService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<FeedbackResponse> findAll(FeedbackStatus status) {
+        List<Feedback> feedback = status != null
+                ? feedbackRepository.findByStatusOrderByIdDesc(status)
+                : feedbackRepository.findAllByOrderByIdDesc();
+        return feedback.stream().map(FeedbackResponse::from).toList();
+    }
+
     @Transactional
     public FeedbackResponse reply(Long feedbackId, String reply) {
         Feedback feedback = feedbackRepository.findById(feedbackId)
                 .orElseThrow(() -> new EntityNotFoundException("Feedback " + feedbackId + " not found"));
+        if (feedback.getStatus() != FeedbackStatus.OPEN) {
+            throw new IllegalStateException("Feedback " + feedbackId + " is not open");
+        }
 
         feedback.setReply(reply);
         Feedback saved = feedbackRepository.save(feedback);

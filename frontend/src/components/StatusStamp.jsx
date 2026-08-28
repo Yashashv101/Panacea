@@ -23,11 +23,11 @@ export default function StatusStamp({ status, variant }) {
   const label = String(status ?? "").toUpperCase();
   const resolvedVariant =
     variant ??
-    (["APPROVED", "PAID", "COMPLETE", "COMPLETED", "PRESENT"].includes(label)
+    (["APPROVED", "PAID", "COMPLETE", "COMPLETED", "PRESENT", "RESOLVED"].includes(label)
       ? "positive"
       : ["REJECTED", "DENIED", "OVERDUE", "ABSENT", "FAILED"].includes(label)
       ? "negative"
-      : ["PENDING", "PROCESSING"].includes(label)
+      : ["PENDING", "PROCESSING", "OPEN"].includes(label)
       ? "pending"
       : "neutral");
 

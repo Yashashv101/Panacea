@@ -16,6 +16,7 @@ const ADMIN_NAV_ITEMS = [
   { to: "/admin/timetable", label: "Generate Timetable" },
   { to: "/admin/leave", label: "Leave Requests" },
   { to: "/admin/fees", label: "Fees Overview" },
+  { to: "/admin/feedback", label: "Feedback" },
 ];
 
 export default function Sidebar() {

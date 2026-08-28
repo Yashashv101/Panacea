@@ -1,5 +1,6 @@
 package com.example.Panacea.common;
 
+import com.stripe.exception.StripeException;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -34,6 +35,11 @@ public class ApiExceptionHandler {
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException ex) {
         return build(HttpStatus.FORBIDDEN, "You do not have permission to perform this action");
+    }
+
+    @ExceptionHandler(StripeException.class)
+    public ResponseEntity<Map<String, Object>> handleStripeException(StripeException ex) {
+        return build(HttpStatus.BAD_GATEWAY, "Payment provider request failed: " + ex.getMessage());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

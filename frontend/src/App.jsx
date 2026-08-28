@@ -9,6 +9,7 @@ import AcademicStructure from "./pages/admin/AcademicStructure";
 import TimetableGeneration from "./pages/admin/TimetableGeneration";
 import LeaveQueue from "./pages/admin/LeaveQueue";
 import FeesOverview from "./pages/admin/FeesOverview";
+import FeedbackQueue from "./pages/admin/FeedbackQueue";
 
 export default function App() {
   return (
@@ -67,6 +68,14 @@ export default function App() {
             element={
               <ProtectedRoute allowedRoles={["ADMIN"]}>
                 <FeesOverview />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/feedback"
+            element={
+              <ProtectedRoute allowedRoles={["ADMIN"]}>
+                <FeedbackQueue />
               </ProtectedRoute>
             }
           />

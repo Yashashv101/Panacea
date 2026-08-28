@@ -3,6 +3,7 @@ package com.example.Panacea.feedback.controller;
 import com.example.Panacea.feedback.dto.FeedbackResponse;
 import com.example.Panacea.feedback.dto.ReplyFeedbackRequest;
 import com.example.Panacea.feedback.dto.SubmitFeedbackRequest;
+import com.example.Panacea.feedback.entity.FeedbackStatus;
 import com.example.Panacea.feedback.service.FeedbackService;
 import com.example.Panacea.identity.security.UserPrincipal;
 import jakarta.validation.Valid;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -36,6 +38,12 @@ public class FeedbackController {
     @PreAuthorize("hasAnyRole('STUDENT', 'STAFF')")
     public List<FeedbackResponse> myFeedback(@AuthenticationPrincipal UserPrincipal principal) {
         return feedbackService.findOwn(principal.getId());
+    }
+
+    @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<FeedbackResponse> findAll(@RequestParam(required = false) FeedbackStatus status) {
+        return feedbackService.findAll(status);
     }
 
     @PostMapping("/{id}/reply")

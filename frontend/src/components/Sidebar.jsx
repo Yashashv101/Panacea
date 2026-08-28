@@ -10,7 +10,10 @@ const NAV_ITEMS = [
   { to: "/leave", label: "Leave" },
 ];
 
-const ADMIN_NAV_ITEMS = [{ to: "/admin/users", label: "Users" }];
+const ADMIN_NAV_ITEMS = [
+  { to: "/admin/users", label: "Users" },
+  { to: "/admin/academic-structure", label: "Academic Structure" },
+];
 
 export default function Sidebar() {
   const { role } = useAuth();

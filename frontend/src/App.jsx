@@ -5,6 +5,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Login from "./pages/Login";
 import Placeholder from "./pages/Placeholder";
 import Users from "./pages/admin/Users";
+import AcademicStructure from "./pages/admin/AcademicStructure";
 
 export default function App() {
   return (
@@ -31,6 +32,14 @@ export default function App() {
             element={
               <ProtectedRoute allowedRoles={["ADMIN"]}>
                 <Users />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/academic-structure"
+            element={
+              <ProtectedRoute allowedRoles={["ADMIN"]}>
+                <AcademicStructure />
               </ProtectedRoute>
             }
           />

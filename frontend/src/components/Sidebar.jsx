@@ -17,6 +17,7 @@ const ADMIN_NAV_ITEMS = [
   { to: "/admin/leave", label: "Leave Requests" },
   { to: "/admin/fees", label: "Fees Overview" },
   { to: "/admin/feedback", label: "Feedback" },
+  { to: "/admin/proctor", label: "Proctor Assignment" },
 ];
 
 export default function Sidebar() {

@@ -10,6 +10,7 @@ import TimetableGeneration from "./pages/admin/TimetableGeneration";
 import LeaveQueue from "./pages/admin/LeaveQueue";
 import FeesOverview from "./pages/admin/FeesOverview";
 import FeedbackQueue from "./pages/admin/FeedbackQueue";
+import ProctorAssignment from "./pages/admin/ProctorAssignment";
 
 export default function App() {
   return (
@@ -76,6 +77,14 @@ export default function App() {
             element={
               <ProtectedRoute allowedRoles={["ADMIN"]}>
                 <FeedbackQueue />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/proctor"
+            element={
+              <ProtectedRoute allowedRoles={["ADMIN"]}>
+                <ProctorAssignment />
               </ProtectedRoute>
             }
           />

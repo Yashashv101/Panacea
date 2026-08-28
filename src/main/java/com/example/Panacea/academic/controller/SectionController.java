@@ -28,25 +28,25 @@ public class SectionController {
 
     @GetMapping
     public List<SectionResponse> findAll() {
-        return sectionService.findAll().stream().map(SectionResponse::from).toList();
+        return sectionService.findAll();
     }
 
     @GetMapping("/{id}")
     public SectionResponse findById(@PathVariable Long id) {
-        return SectionResponse.from(sectionService.findById(id));
+        return sectionService.findById(id);
     }
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     @ResponseStatus(HttpStatus.CREATED)
     public SectionResponse create(@Valid @RequestBody SectionRequest request) {
-        return SectionResponse.from(sectionService.create(request));
+        return sectionService.create(request);
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public SectionResponse update(@PathVariable Long id, @Valid @RequestBody SectionRequest request) {
-        return SectionResponse.from(sectionService.update(id, request));
+        return sectionService.update(id, request);
     }
 
     @DeleteMapping("/{id}")

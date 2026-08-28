@@ -4,6 +4,7 @@ import com.example.Panacea.academic.entity.Course;
 import com.example.Panacea.academic.entity.Section;
 import com.example.Panacea.academic.entity.Subject;
 import com.example.Panacea.academic.dto.SubjectRequest;
+import com.example.Panacea.academic.dto.SubjectResponse;
 import com.example.Panacea.identity.entity.Role;
 import com.example.Panacea.identity.entity.User;
 import com.example.Panacea.academic.repository.CourseRepository;
@@ -31,28 +32,27 @@ public class SubjectService {
     private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
-    public List<Subject> findAll() {
-        return subjectRepository.findAll();
+    public List<SubjectResponse> findAll() {
+        return subjectRepository.findAll().stream().map(SubjectResponse::from).toList();
     }
 
     @Transactional(readOnly = true)
-    public Subject findById(Long id) {
-        return subjectRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Subject " + id + " not found"));
+    public SubjectResponse findById(Long id) {
+        return SubjectResponse.from(findEntityById(id));
     }
 
     @Transactional
-    public Subject create(SubjectRequest request) {
+    public SubjectResponse create(SubjectRequest request) {
         Subject subject = new Subject();
         apply(subject, request);
-        return subjectRepository.save(subject);
+        return SubjectResponse.from(subjectRepository.save(subject));
     }
 
     @Transactional
-    public Subject update(Long id, SubjectRequest request) {
-        Subject subject = findById(id);
+    public SubjectResponse update(Long id, SubjectRequest request) {
+        Subject subject = findEntityById(id);
         apply(subject, request);
-        return subject;
+        return SubjectResponse.from(subject);
     }
 
     @Transactional
@@ -61,6 +61,11 @@ public class SubjectService {
             throw new EntityNotFoundException("Subject " + id + " not found");
         }
         subjectRepository.deleteById(id);
+    }
+
+    private Subject findEntityById(Long id) {
+        return subjectRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Subject " + id + " not found"));
     }
 
     private void apply(Subject subject, SubjectRequest request) {

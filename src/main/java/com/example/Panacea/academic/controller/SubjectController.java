@@ -28,25 +28,25 @@ public class SubjectController {
 
     @GetMapping
     public List<SubjectResponse> findAll() {
-        return subjectService.findAll().stream().map(SubjectResponse::from).toList();
+        return subjectService.findAll();
     }
 
     @GetMapping("/{id}")
     public SubjectResponse findById(@PathVariable Long id) {
-        return SubjectResponse.from(subjectService.findById(id));
+        return subjectService.findById(id);
     }
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     @ResponseStatus(HttpStatus.CREATED)
     public SubjectResponse create(@Valid @RequestBody SubjectRequest request) {
-        return SubjectResponse.from(subjectService.create(request));
+        return subjectService.create(request);
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public SubjectResponse update(@PathVariable Long id, @Valid @RequestBody SubjectRequest request) {
-        return SubjectResponse.from(subjectService.update(id, request));
+        return subjectService.update(id, request);
     }
 
     @DeleteMapping("/{id}")

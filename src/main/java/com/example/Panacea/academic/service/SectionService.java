@@ -3,6 +3,7 @@ package com.example.Panacea.academic.service;
 import com.example.Panacea.academic.entity.Course;
 import com.example.Panacea.academic.entity.Section;
 import com.example.Panacea.academic.dto.SectionRequest;
+import com.example.Panacea.academic.dto.SectionResponse;
 import com.example.Panacea.academic.repository.CourseRepository;
 import com.example.Panacea.academic.repository.SectionRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -20,18 +21,17 @@ public class SectionService {
     private final CourseRepository courseRepository;
 
     @Transactional(readOnly = true)
-    public List<Section> findAll() {
-        return sectionRepository.findAll();
+    public List<SectionResponse> findAll() {
+        return sectionRepository.findAll().stream().map(SectionResponse::from).toList();
     }
 
     @Transactional(readOnly = true)
-    public Section findById(Long id) {
-        return sectionRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Section " + id + " not found"));
+    public SectionResponse findById(Long id) {
+        return SectionResponse.from(findEntityById(id));
     }
 
     @Transactional
-    public Section create(SectionRequest request) {
+    public SectionResponse create(SectionRequest request) {
         Course course = courseRepository.findById(request.courseId())
                 .orElseThrow(() -> new EntityNotFoundException("Course " + request.courseId() + " not found"));
 
@@ -40,15 +40,16 @@ public class SectionService {
                     "Section '" + request.name() + "' already exists for course " + course.getName());
         }
 
-        return sectionRepository.save(Section.builder()
+        Section section = sectionRepository.save(Section.builder()
                 .name(request.name())
                 .course(course)
                 .build());
+        return SectionResponse.from(section);
     }
 
     @Transactional
-    public Section update(Long id, SectionRequest request) {
-        Section section = findById(id);
+    public SectionResponse update(Long id, SectionRequest request) {
+        Section section = findEntityById(id);
         Course course = courseRepository.findById(request.courseId())
                 .orElseThrow(() -> new EntityNotFoundException("Course " + request.courseId() + " not found"));
 
@@ -60,7 +61,7 @@ public class SectionService {
 
         section.setName(request.name());
         section.setCourse(course);
-        return section;
+        return SectionResponse.from(section);
     }
 
     @Transactional
@@ -69,5 +70,10 @@ public class SectionService {
             throw new EntityNotFoundException("Section " + id + " not found");
         }
         sectionRepository.deleteById(id);
+    }
+
+    private Section findEntityById(Long id) {
+        return sectionRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Section " + id + " not found"));
     }
 }

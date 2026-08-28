@@ -10,5 +10,7 @@ public interface FeePaymentRepository extends JpaRepository<FeePayment, Long> {
 
     Optional<FeePayment> findByIdempotencyKey(String idempotencyKey);
 
+    Optional<FeePayment> findByStripePaymentIntentId(String stripePaymentIntentId);
+
     List<FeePayment> findByStudentIdOrderByCreatedAtDesc(Long studentId);
 }

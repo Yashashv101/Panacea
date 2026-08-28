@@ -26,11 +26,11 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 /**
- * {@code idempotencyKey} is generated once when a payment is initiated and is the
- * DB-level guard against a duplicate row for what should be a single payment
- * attempt — mirroring a payment gateway's session-idempotency key. The confirm/
- * webhook endpoint looks a payment up by this key rather than trusting any
- * client-supplied id.
+ * {@code idempotencyKey} holds the Stripe Checkout Session id created when the
+ * payment is initiated, and is the DB-level guard against a duplicate row for
+ * what should be a single payment attempt. The Stripe webhook handler looks a
+ * payment up by this key — which Stripe itself assigns — rather than trusting
+ * any client-supplied id.
  */
 @Entity
 @Table(name = "fee_payments")
@@ -67,6 +67,16 @@ public class FeePayment {
 
     @Column(name = "idempotency_key", nullable = false, unique = true)
     private String idempotencyKey;
+
+    /**
+     * The Stripe PaymentIntent id, captured at initiate time — a Checkout Session
+     * in "payment" mode has its PaymentIntent created synchronously, before the
+     * student ever pays. This lets the webhook look a payment up by intent id for
+     * events (like payment_intent.payment_failed) that don't carry the checkout
+     * session id.
+     */
+    @Column(name = "stripe_payment_intent_id", unique = true)
+    private String stripePaymentIntentId;
 
     @Column(name = "payment_reference")
     private String paymentReference;

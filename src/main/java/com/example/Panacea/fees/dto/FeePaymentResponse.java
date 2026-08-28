@@ -16,9 +16,14 @@ public record FeePaymentResponse(
         PaymentStatus status,
         String idempotencyKey,
         String paymentReference,
-        Instant createdAt
+        Instant createdAt,
+        String checkoutUrl
 ) {
     public static FeePaymentResponse from(FeePayment payment) {
+        return from(payment, null);
+    }
+
+    public static FeePaymentResponse from(FeePayment payment, String checkoutUrl) {
         return new FeePaymentResponse(
                 payment.getId(),
                 payment.getStudent().getId(),
@@ -29,6 +34,7 @@ public record FeePaymentResponse(
                 payment.getStatus(),
                 payment.getIdempotencyKey(),
                 payment.getPaymentReference(),
-                payment.getCreatedAt());
+                payment.getCreatedAt(),
+                checkoutUrl);
     }
 }

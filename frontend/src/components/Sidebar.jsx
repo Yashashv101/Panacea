@@ -14,6 +14,7 @@ const ADMIN_NAV_ITEMS = [
   { to: "/admin/users", label: "Users" },
   { to: "/admin/academic-structure", label: "Academic Structure" },
   { to: "/admin/timetable", label: "Generate Timetable" },
+  { to: "/admin/leave", label: "Leave Requests" },
 ];
 
 export default function Sidebar() {

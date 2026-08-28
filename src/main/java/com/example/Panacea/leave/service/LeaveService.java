@@ -48,6 +48,14 @@ public class LeaveService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<LeaveRequestResponse> findAll(LeaveStatus status) {
+        List<LeaveRequest> requests = status != null
+                ? leaveRequestRepository.findByStatusOrderByStartDateDesc(status)
+                : leaveRequestRepository.findAllByOrderByStartDateDesc();
+        return requests.stream().map(LeaveRequestResponse::from).toList();
+    }
+
     @Transactional
     public LeaveRequestResponse approve(Long leaveRequestId, Long approverId) {
         return decide(leaveRequestId, approverId, LeaveStatus.APPROVED);

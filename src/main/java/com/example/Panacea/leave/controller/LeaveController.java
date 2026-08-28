@@ -3,6 +3,7 @@ package com.example.Panacea.leave.controller;
 import com.example.Panacea.identity.security.UserPrincipal;
 import com.example.Panacea.leave.dto.LeaveRequestResponse;
 import com.example.Panacea.leave.dto.SubmitLeaveRequest;
+import com.example.Panacea.leave.entity.LeaveStatus;
 import com.example.Panacea.leave.service.LeaveService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -35,6 +37,12 @@ public class LeaveController {
     @PreAuthorize("hasAnyRole('STUDENT', 'STAFF')")
     public List<LeaveRequestResponse> myRequests(@AuthenticationPrincipal UserPrincipal principal) {
         return leaveService.findOwn(principal.getId());
+    }
+
+    @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<LeaveRequestResponse> findAll(@RequestParam(required = false) LeaveStatus status) {
+        return leaveService.findAll(status);
     }
 
     @PostMapping("/{id}/approve")

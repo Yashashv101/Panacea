@@ -11,11 +11,15 @@ import com.example.Panacea.attendance.entity.Attendance;
 import com.example.Panacea.attendance.entity.AttendanceReport;
 import com.example.Panacea.attendance.repository.AttendanceReportRepository;
 import com.example.Panacea.attendance.repository.AttendanceRepository;
+import com.example.Panacea.audit.service.AuditLogService;
 import com.example.Panacea.identity.entity.User;
 import com.example.Panacea.identity.repository.UserRepository;
 import com.example.Panacea.notifications.service.NotificationEventPublisher;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +40,10 @@ public class AttendanceService {
     private final AttendanceRepository attendanceRepository;
     private final AttendanceReportRepository attendanceReportRepository;
     private final NotificationEventPublisher notificationEventPublisher;
+    private final AuditLogService auditLogService;
+    private final CacheManager cacheManager;
+
+    static final String PERCENTAGE_CACHE = "attendancePercentage";
 
     @Transactional
     public AttendanceResponse markAttendance(MarkAttendanceRequest request, Long staffId) {
@@ -67,18 +75,33 @@ public class AttendanceService {
                 .toList();
         attendanceReportRepository.saveAll(reports);
 
-        reports.forEach(report -> notificationEventPublisher.publish(report.getStudent().getId(),
-                "Attendance for " + subject.getName() + " on " + request.date()
-                        + " marked as " + (report.isPresent() ? "present" : "absent") + "."));
+        auditLogService.record(staff, "ATTENDANCE_MARK", "Attendance", attendance.getId(),
+                "Marked attendance for " + reports.size() + " student(s) in subject " + subject.getId()
+                        + " on " + request.date());
+
+        Cache percentageCache = cacheManager.getCache(PERCENTAGE_CACHE);
+        reports.forEach(report -> {
+            if (percentageCache != null) {
+                percentageCache.evict(percentageKey(report.getStudent().getId(), subject.getId()));
+            }
+            notificationEventPublisher.publish(report.getStudent().getId(),
+                    "Attendance for " + subject.getName() + " on " + request.date()
+                            + " marked as " + (report.isPresent() ? "present" : "absent") + ".");
+        });
 
         return AttendanceResponse.from(attendance, reports.size());
     }
 
+    @Cacheable(value = PERCENTAGE_CACHE, key = "#studentId + ':' + #subjectId")
     @Transactional(readOnly = true)
     public AttendancePercentageResponse computePercentage(Long studentId, Long subjectId) {
         long total = attendanceReportRepository.countByStudentIdAndSubjectId(studentId, subjectId);
         long present = attendanceReportRepository.countPresentByStudentIdAndSubjectId(studentId, subjectId);
         double percentage = total == 0 ? 0.0 : (present * 100.0) / total;
         return new AttendancePercentageResponse(studentId, subjectId, total, present, percentage);
+    }
+
+    private static String percentageKey(Long studentId, Long subjectId) {
+        return studentId + ":" + subjectId;
     }
 }

@@ -6,7 +6,9 @@ import com.example.Panacea.academic.entity.Subject;
 import com.example.Panacea.academic.repository.SectionRepository;
 import com.example.Panacea.academic.repository.SemesterRepository;
 import com.example.Panacea.academic.repository.SubjectRepository;
+import com.example.Panacea.audit.service.AuditLogService;
 import com.example.Panacea.identity.entity.User;
+import com.example.Panacea.identity.repository.UserRepository;
 import com.example.Panacea.timetable.dto.GenerateTimetableRequest;
 import com.example.Panacea.timetable.dto.TimetableGenerationResponse;
 import com.example.Panacea.timetable.entity.TimetableEntry;
@@ -51,6 +53,8 @@ public class TimetableService {
     private final SectionRepository sectionRepository;
     private final SemesterRepository semesterRepository;
     private final TimetableEntryRepository timetableEntryRepository;
+    private final UserRepository userRepository;
+    private final AuditLogService auditLogService;
 
     @Transactional(readOnly = true)
     public List<TimetableEntry> findBySection(Long sectionId) {
@@ -63,7 +67,9 @@ public class TimetableService {
     }
 
     @Transactional
-    public TimetableGenerationResponse generate(GenerateTimetableRequest request) {
+    public TimetableGenerationResponse generate(GenerateTimetableRequest request, Long actorId) {
+        User actor = userRepository.findById(actorId)
+                .orElseThrow(() -> new EntityNotFoundException("User " + actorId + " not found"));
         Semester semester = semesterRepository.findById(request.semesterId())
                 .orElseThrow(() -> new EntityNotFoundException("Semester " + request.semesterId() + " not found"));
         Section section = sectionRepository.findById(request.sectionId())
@@ -135,6 +141,9 @@ public class TimetableService {
                         .formatted(subject.getCredits() - classesNeeded, subject.getCredits(), subject.getName()));
             }
         }
+
+        auditLogService.record(actor, "TIMETABLE_REGENERATE", "Section", section.getId(),
+                "Generated " + created + " entries (" + skipped + " skipped) for semester " + semester.getId());
 
         return new TimetableGenerationResponse(created, skipped, errors);
     }

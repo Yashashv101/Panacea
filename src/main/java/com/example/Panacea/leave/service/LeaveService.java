@@ -1,5 +1,6 @@
 package com.example.Panacea.leave.service;
 
+import com.example.Panacea.audit.service.AuditLogService;
 import com.example.Panacea.identity.entity.User;
 import com.example.Panacea.identity.repository.UserRepository;
 import com.example.Panacea.leave.dto.LeaveRequestResponse;
@@ -22,6 +23,7 @@ public class LeaveService {
     private final UserRepository userRepository;
     private final LeaveRequestRepository leaveRequestRepository;
     private final NotificationEventPublisher notificationEventPublisher;
+    private final AuditLogService auditLogService;
 
     @Transactional
     public LeaveRequestResponse submit(SubmitLeaveRequest request, Long requesterId) {
@@ -69,6 +71,9 @@ public class LeaveService {
         leaveRequest.setStatus(decision);
         leaveRequest.setApprover(approver);
         LeaveRequest saved = leaveRequestRepository.save(leaveRequest);
+
+        auditLogService.record(approver, "LEAVE_" + decision.name(), "LeaveRequest", saved.getId(),
+                "Leave request for user " + saved.getRequester().getId() + " " + decision.name().toLowerCase());
 
         notificationEventPublisher.publish(saved.getRequester().getId(),
                 "Your leave request from " + saved.getStartDate() + " to " + saved.getEndDate()

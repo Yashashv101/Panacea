@@ -4,6 +4,7 @@ import com.example.Panacea.academic.entity.Semester;
 import com.example.Panacea.academic.entity.Subject;
 import com.example.Panacea.academic.repository.SemesterRepository;
 import com.example.Panacea.academic.repository.SubjectRepository;
+import com.example.Panacea.audit.service.AuditLogService;
 import com.example.Panacea.identity.entity.User;
 import com.example.Panacea.identity.repository.UserRepository;
 import com.example.Panacea.notifications.service.NotificationEventPublisher;
@@ -27,9 +28,12 @@ public class ResultService {
     private final SemesterRepository semesterRepository;
     private final StudentResultRepository studentResultRepository;
     private final NotificationEventPublisher notificationEventPublisher;
+    private final AuditLogService auditLogService;
 
     @Transactional
-    public StudentResultResponse upsertResult(UpsertResultRequest request) {
+    public StudentResultResponse upsertResult(UpsertResultRequest request, Long actorId) {
+        User actor = userRepository.findById(actorId)
+                .orElseThrow(() -> new EntityNotFoundException("User " + actorId + " not found"));
         User student = userRepository.findById(request.studentId())
                 .orElseThrow(() -> new EntityNotFoundException("Student " + request.studentId() + " not found"));
         Subject subject = subjectRepository.findById(request.subjectId())
@@ -52,6 +56,9 @@ public class ResultService {
         result.setSee(request.see());
 
         StudentResult saved = studentResultRepository.save(result);
+
+        auditLogService.record(actor, "RESULT_UPSERT", "StudentResult", saved.getId(),
+                "Upserted result for student " + student.getId() + " in subject " + subject.getId());
 
         notificationEventPublisher.publish(saved.getStudent().getId(),
                 "Your result for " + saved.getSubject().getName() + " has been published.");

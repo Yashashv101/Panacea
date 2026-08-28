@@ -25,8 +25,9 @@ public class ResultController {
 
     @PostMapping
     @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
-    public StudentResultResponse upsertResult(@Valid @RequestBody UpsertResultRequest request) {
-        return resultService.upsertResult(request);
+    public StudentResultResponse upsertResult(@Valid @RequestBody UpsertResultRequest request,
+                                               @AuthenticationPrincipal UserPrincipal principal) {
+        return resultService.upsertResult(request, principal.getId());
     }
 
     @GetMapping("/me")

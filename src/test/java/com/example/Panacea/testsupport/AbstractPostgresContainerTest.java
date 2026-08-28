@@ -1,11 +1,12 @@
 package com.example.Panacea.testsupport;
 
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.rabbitmq.RabbitMQContainer;
 
 /**
- * Shared Testcontainers setup — Postgres and RabbitMQ — so every test — slice or
+ * Shared Testcontainers setup — Postgres, RabbitMQ and Redis — so every test — slice or
  * full context — runs against real infrastructure instead of mocks or an
  * in-memory database, matching production.
  *
@@ -35,8 +36,12 @@ public abstract class AbstractPostgresContainerTest {
     @ServiceConnection
     static final RabbitMQContainer RABBIT = new RabbitMQContainer("rabbitmq:3.13-management-alpine");
 
+    @ServiceConnection
+    static final GenericContainer<?> REDIS = new GenericContainer<>("redis:7-alpine").withExposedPorts(6379);
+
     static {
         POSTGRES.start();
         RABBIT.start();
+        REDIS.start();
     }
 }

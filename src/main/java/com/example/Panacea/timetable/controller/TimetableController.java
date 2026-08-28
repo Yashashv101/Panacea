@@ -1,5 +1,6 @@
 package com.example.Panacea.timetable.controller;
 
+import com.example.Panacea.identity.security.UserPrincipal;
 import com.example.Panacea.timetable.dto.GenerateTimetableRequest;
 import com.example.Panacea.timetable.dto.TimetableEntryResponse;
 import com.example.Panacea.timetable.dto.TimetableGenerationResponse;
@@ -7,6 +8,7 @@ import com.example.Panacea.timetable.service.TimetableService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -25,8 +27,9 @@ public class TimetableController {
 
     @PostMapping("/generate")
     @PreAuthorize("hasRole('ADMIN')")
-    public TimetableGenerationResponse generate(@Valid @RequestBody GenerateTimetableRequest request) {
-        return timetableService.generate(request);
+    public TimetableGenerationResponse generate(@Valid @RequestBody GenerateTimetableRequest request,
+                                                 @AuthenticationPrincipal UserPrincipal principal) {
+        return timetableService.generate(request, principal.getId());
     }
 
     @GetMapping("/section/{sectionId}")

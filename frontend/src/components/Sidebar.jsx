@@ -15,6 +15,7 @@ const ADMIN_NAV_ITEMS = [
   { to: "/admin/academic-structure", label: "Academic Structure" },
   { to: "/admin/timetable", label: "Generate Timetable" },
   { to: "/admin/leave", label: "Leave Requests" },
+  { to: "/admin/fees", label: "Fees Overview" },
 ];
 
 export default function Sidebar() {

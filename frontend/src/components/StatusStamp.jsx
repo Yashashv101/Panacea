@@ -25,7 +25,7 @@ export default function StatusStamp({ status, variant }) {
     variant ??
     (["APPROVED", "PAID", "COMPLETE", "COMPLETED", "PRESENT"].includes(label)
       ? "positive"
-      : ["REJECTED", "DENIED", "OVERDUE", "ABSENT"].includes(label)
+      : ["REJECTED", "DENIED", "OVERDUE", "ABSENT", "FAILED"].includes(label)
       ? "negative"
       : ["PENDING", "PROCESSING"].includes(label)
       ? "pending"

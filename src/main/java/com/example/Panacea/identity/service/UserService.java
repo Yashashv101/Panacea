@@ -1,5 +1,6 @@
 package com.example.Panacea.identity.service;
 
+import com.example.Panacea.identity.entity.Role;
 import com.example.Panacea.identity.entity.User;
 import com.example.Panacea.identity.dto.CreateUserRequest;
 import com.example.Panacea.identity.repository.UserRepository;
@@ -8,12 +9,19 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+
+    @Transactional(readOnly = true)
+    public List<User> listUsers(Role role) {
+        return role != null ? userRepository.findByRole(role) : userRepository.findAll();
+    }
 
     @Transactional
     public User createUser(CreateUserRequest request) {

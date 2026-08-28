@@ -1,5 +1,6 @@
 package com.example.Panacea.identity.controller;
 
+import com.example.Panacea.identity.entity.Role;
 import com.example.Panacea.identity.entity.User;
 import com.example.Panacea.identity.service.UserService;
 import com.example.Panacea.identity.dto.CreateUserRequest;
@@ -8,11 +9,15 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/users")
@@ -27,5 +32,11 @@ public class UserController {
     public UserResponse createUser(@Valid @RequestBody CreateUserRequest request) {
         User user = userService.createUser(request);
         return UserResponse.from(user);
+    }
+
+    @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<UserResponse> listUsers(@RequestParam(required = false) Role role) {
+        return userService.listUsers(role).stream().map(UserResponse::from).toList();
     }
 }

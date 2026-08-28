@@ -36,3 +36,4 @@ build/
 CLAUDE.md
 PROJECT_KNOWLEDGE.md
 .claude
+src/main/resources/application.properties

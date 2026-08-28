@@ -2,7 +2,7 @@ package com.example.Panacea.notifications.controller;
 
 import com.example.Panacea.identity.security.UserPrincipal;
 import com.example.Panacea.notifications.dto.NotificationResponse;
-import com.example.Panacea.notifications.repository.NotificationRepository;
+import com.example.Panacea.notifications.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,12 +16,10 @@ import java.util.List;
 @RequiredArgsConstructor
 public class NotificationController {
 
-    private final NotificationRepository notificationRepository;
+    private final NotificationService notificationService;
 
     @GetMapping("/me")
     public List<NotificationResponse> myNotifications(@AuthenticationPrincipal UserPrincipal principal) {
-        return notificationRepository.findByRecipientIdOrderByCreatedAtDesc(principal.getId()).stream()
-                .map(NotificationResponse::from)
-                .toList();
+        return notificationService.findOwn(principal.getId());
     }
 }

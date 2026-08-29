@@ -3,6 +3,8 @@ package com.example.Panacea.academic.entity;
 import com.example.Panacea.identity.entity.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -17,6 +19,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -39,6 +42,16 @@ public class Subject {
 
     @Column(nullable = false)
     private Integer credits;
+
+    // Defaults existing rows to CORE via @ColumnDefault (not columnDefinition,
+    // for the same reason as ProctorAssignment.assignmentType — see its comment)
+    // so ddl-auto=update can add this NOT NULL column onto an already-populated
+    // subjects table without a migration tool.
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    @ColumnDefault("'CORE'")
+    @Builder.Default
+    private SubjectType type = SubjectType.CORE;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "primary_staff_id")

@@ -71,6 +71,7 @@ public class SubjectService {
     private void apply(Subject subject, SubjectRequest request) {
         subject.setName(request.name());
         subject.setCredits(request.credits());
+        subject.setType(request.type());
         subject.setSemester(semesterRepository.findById(request.semesterId())
                 .orElseThrow(() -> new EntityNotFoundException("Semester " + request.semesterId() + " not found")));
         subject.setPrimaryStaff(resolvePrimaryStaff(request.primaryStaffId()));

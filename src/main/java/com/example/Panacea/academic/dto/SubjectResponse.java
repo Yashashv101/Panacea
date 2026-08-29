@@ -3,6 +3,7 @@ package com.example.Panacea.academic.dto;
 import com.example.Panacea.academic.entity.Course;
 import com.example.Panacea.academic.entity.Section;
 import com.example.Panacea.academic.entity.Subject;
+import com.example.Panacea.academic.entity.SubjectType;
 
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -11,6 +12,7 @@ public record SubjectResponse(
         Long id,
         String name,
         Integer credits,
+        SubjectType type,
         Long primaryStaffId,
         String primaryStaffName,
         Long semesterId,
@@ -22,6 +24,7 @@ public record SubjectResponse(
                 subject.getId(),
                 subject.getName(),
                 subject.getCredits(),
+                subject.getType(),
                 subject.getPrimaryStaff() != null ? subject.getPrimaryStaff().getId() : null,
                 subject.getPrimaryStaff() != null
                         ? subject.getPrimaryStaff().getFirstName() + " " + subject.getPrimaryStaff().getLastName()

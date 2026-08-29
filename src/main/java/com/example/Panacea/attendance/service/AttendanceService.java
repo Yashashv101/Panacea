@@ -14,12 +14,14 @@ import com.example.Panacea.attendance.repository.AttendanceRepository;
 import com.example.Panacea.audit.service.AuditLogService;
 import com.example.Panacea.identity.entity.User;
 import com.example.Panacea.identity.repository.UserRepository;
+import com.example.Panacea.identity.entity.Role;
 import com.example.Panacea.notifications.service.NotificationEventPublisher;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -53,6 +55,11 @@ public class AttendanceService {
                 .orElseThrow(() -> new EntityNotFoundException("Section " + request.sectionId() + " not found"));
         User staff = userRepository.findById(staffId)
                 .orElseThrow(() -> new EntityNotFoundException("Staff " + staffId + " not found"));
+
+        if (staff.getRole() == Role.STAFF
+                && (subject.getPrimaryStaff() == null || !subject.getPrimaryStaff().getId().equals(staffId))) {
+            throw new AccessDeniedException("You are not the primary staff for this subject");
+        }
 
         Attendance attendance = attendanceRepository.save(Attendance.builder()
                 .subject(subject)

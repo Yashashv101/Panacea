@@ -11,6 +11,7 @@ import LeaveQueue from "./pages/admin/LeaveQueue";
 import FeesOverview from "./pages/admin/FeesOverview";
 import FeedbackQueue from "./pages/admin/FeedbackQueue";
 import ProctorAssignment from "./pages/admin/ProctorAssignment";
+import AtRiskStudents from "./pages/admin/AtRiskStudents";
 
 export default function App() {
   return (
@@ -85,6 +86,14 @@ export default function App() {
             element={
               <ProtectedRoute allowedRoles={["ADMIN"]}>
                 <ProctorAssignment />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/at-risk"
+            element={
+              <ProtectedRoute allowedRoles={["ADMIN"]}>
+                <AtRiskStudents />
               </ProtectedRoute>
             }
           />

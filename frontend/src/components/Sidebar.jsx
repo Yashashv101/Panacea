@@ -18,6 +18,7 @@ const ADMIN_NAV_ITEMS = [
   { to: "/admin/fees", label: "Fees Overview" },
   { to: "/admin/feedback", label: "Feedback" },
   { to: "/admin/proctor", label: "Proctor Assignment" },
+  { to: "/admin/at-risk", label: "At-Risk Students" },
 ];
 
 export default function Sidebar() {

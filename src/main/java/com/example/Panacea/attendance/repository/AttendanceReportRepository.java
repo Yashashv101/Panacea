@@ -14,4 +14,10 @@ public interface AttendanceReportRepository extends JpaRepository<AttendanceRepo
     @Query("select count(ar) from AttendanceReport ar " +
             "where ar.student.id = :studentId and ar.attendance.subject.id = :subjectId and ar.present = true")
     long countPresentByStudentIdAndSubjectId(@Param("studentId") Long studentId, @Param("subjectId") Long subjectId);
+
+    @Query("select count(ar) from AttendanceReport ar where ar.student.id = :studentId")
+    long countByStudentId(@Param("studentId") Long studentId);
+
+    @Query("select count(ar) from AttendanceReport ar where ar.student.id = :studentId and ar.present = true")
+    long countPresentByStudentId(@Param("studentId") Long studentId);
 }

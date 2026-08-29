@@ -34,18 +34,13 @@ export default function MarkAttendance() {
       setLoading(true);
       setLoadError(null);
       try {
-        const [subjectsRes, sectionsRes, studentsRes] = await Promise.all([
+        const [subjectsRes, sectionsRes] = await Promise.all([
           apiClient.get("/subjects"),
           apiClient.get("/sections"),
-          apiClient.get("/users", { params: { role: "STUDENT" } }),
         ]);
         if (cancelled) return;
         setSubjects(subjectsRes.data);
         setSections(sectionsRes.data);
-        setStudents(studentsRes.data);
-        setPresentByStudentId(
-          Object.fromEntries(studentsRes.data.map((student) => [student.id, true]))
-        );
       } catch {
         if (!cancelled) setLoadError("Could not load attendance data.");
       } finally {
@@ -58,6 +53,38 @@ export default function MarkAttendance() {
       cancelled = true;
     };
   }, []);
+
+  // The roster depends on which section is selected — fetch it fresh each
+  // time, rather than loading every student up front.
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!sectionId) {
+      setStudents([]);
+      setPresentByStudentId({});
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    apiClient
+      .get("/students", { params: { sectionId } })
+      .then((res) => {
+        if (cancelled) return;
+        setStudents(res.data);
+        setPresentByStudentId(Object.fromEntries(res.data.map((student) => [student.id, true])));
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setStudents([]);
+          setPresentByStudentId({});
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sectionId]);
 
   const ownedSubjects = useMemo(
     () => subjects.filter((subject) => subject.primaryStaffId === userId),
@@ -217,13 +244,12 @@ export default function MarkAttendance() {
           <section>
             <div className="mb-2 flex items-baseline justify-between border-b border-brass/20 pb-2">
               <h2 className="font-display text-lg font-semibold text-ink">Students</h2>
-              <span className="text-xs text-slate">
-                Showing all students — enrollment is not yet tracked per section.
-              </span>
             </div>
 
             {students.length === 0 ? (
-              <p className="border-b border-brass/20 py-3 text-sm text-slate">No students found.</p>
+              <p className="border-b border-brass/20 py-3 text-sm text-slate">
+                {sectionId ? "No students are enrolled in this section." : "Select a section to see its students."}
+              </p>
             ) : (
               <div className="flex flex-col">
                 {students.map((student) => {

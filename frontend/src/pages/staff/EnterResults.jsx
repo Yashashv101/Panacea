@@ -32,15 +32,13 @@ export default function EnterResults() {
       setLoading(true);
       setLoadError(null);
       try {
-        const [subjectsRes, semestersRes, studentsRes] = await Promise.all([
+        const [subjectsRes, semestersRes] = await Promise.all([
           apiClient.get("/subjects"),
           apiClient.get("/semesters"),
-          apiClient.get("/users", { params: { role: "STUDENT" } }),
         ]);
         if (cancelled) return;
         setSubjects(subjectsRes.data);
         setSemesters(semestersRes.data);
-        setStudents(studentsRes.data);
       } catch {
         if (!cancelled) setLoadError("Could not load results data.");
       } finally {
@@ -65,7 +63,40 @@ export default function EnterResults() {
     setSubjectId(value);
     const subject = ownedSubjects.find((s) => s.id === Number(value));
     setSemesterId(subject ? String(subject.semesterId) : "");
+    setStudentId("");
   }
+
+  // The roster depends on the selected subject's section(s) — a subject can be
+  // taught to more than one section, so fetch each and merge, deduplicating by id.
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!selectedSubject || selectedSubject.sectionIds.length === 0) {
+      setStudents([]);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    Promise.all(
+      selectedSubject.sectionIds.map((sectionId) =>
+        apiClient.get("/students", { params: { sectionId } }).then((res) => res.data)
+      )
+    )
+      .then((rosters) => {
+        if (cancelled) return;
+        const byId = new Map();
+        rosters.flat().forEach((student) => byId.set(student.id, student));
+        setStudents([...byId.values()]);
+      })
+      .catch(() => {
+        if (!cancelled) setStudents([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedSubject]);
 
   // Pre-fill the form from any existing result once subject + semester + student are all chosen.
   useEffect(() => {
@@ -249,9 +280,9 @@ export default function EnterResults() {
                 </option>
               ))}
             </select>
-            <span className="text-xs text-slate">
-              Showing all students — enrollment is not yet tracked per section.
-            </span>
+            {selectedSubject && students.length === 0 && (
+              <span className="text-xs text-slate">No students are enrolled in this subject's section.</span>
+            )}
           </label>
 
           <section>

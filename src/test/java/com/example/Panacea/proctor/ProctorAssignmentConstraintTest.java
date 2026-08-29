@@ -2,6 +2,7 @@ package com.example.Panacea.proctor;
 
 import com.example.Panacea.identity.entity.Role;
 import com.example.Panacea.identity.entity.User;
+import com.example.Panacea.proctor.entity.AssignmentType;
 import com.example.Panacea.proctor.entity.ProctorAssignment;
 import com.example.Panacea.proctor.repository.ProctorAssignmentRepository;
 import com.example.Panacea.testsupport.AbstractPostgresContainerTest;
@@ -41,12 +42,14 @@ class ProctorAssignmentConstraintTest extends AbstractPostgresContainerTest {
                 .build());
 
         ProctorAssignment first = ProctorAssignment.builder()
+                .assignmentType(AssignmentType.EXAM)
                 .staff(staff)
                 .examSessionReference("EXAM-2026-SEM1-CS101")
                 .build();
         proctorAssignmentRepository.saveAndFlush(first);
 
         ProctorAssignment duplicate = ProctorAssignment.builder()
+                .assignmentType(AssignmentType.EXAM)
                 .staff(staff)
                 .examSessionReference("EXAM-2026-SEM1-CS101")
                 .build();

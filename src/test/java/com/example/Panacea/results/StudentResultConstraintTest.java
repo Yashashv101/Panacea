@@ -23,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@TestPropertySource(properties = "spring.jpa.hibernate.ddl-auto=create-drop")
+@TestPropertySource(properties = "spring.jpa.hibernate.ddl-auto=validate")
 class StudentResultConstraintTest extends AbstractPostgresContainerTest {
 
     @Autowired

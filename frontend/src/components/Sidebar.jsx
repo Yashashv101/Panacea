@@ -4,11 +4,15 @@ import { useAuth } from "../context/AuthContext";
 const STUDENT_NAV_ITEMS = [
   { to: "/", label: "Dashboard" },
   { to: "/quizzes", label: "Quizzes" },
+  { to: "/electives", label: "Electives" },
+  { to: "/proctor", label: "My Proctor" },
 ];
 
 const STAFF_NAV_ITEMS = [
   { to: "/staff/attendance", label: "Mark Attendance" },
   { to: "/staff/results", label: "Enter Results" },
+  { to: "/staff/mentees", label: "My Mentees" },
+  { to: "/staff/electives", label: "Elective Requests" },
 ];
 
 const STAFF_QUIZ_NAV_ITEMS = [

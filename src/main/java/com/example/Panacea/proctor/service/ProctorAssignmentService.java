@@ -1,13 +1,18 @@
 package com.example.Panacea.proctor.service;
 
+import com.example.Panacea.fees.entity.PaymentStatus;
+import com.example.Panacea.fees.repository.FeePaymentRepository;
 import com.example.Panacea.identity.entity.Role;
 import com.example.Panacea.identity.entity.User;
 import com.example.Panacea.identity.repository.UserRepository;
 import com.example.Panacea.proctor.dto.CreateProctorAssignmentRequest;
+import com.example.Panacea.proctor.dto.MenteeResponse;
 import com.example.Panacea.proctor.dto.ProctorAssignmentResponse;
 import com.example.Panacea.proctor.entity.AssignmentType;
 import com.example.Panacea.proctor.entity.ProctorAssignment;
 import com.example.Panacea.proctor.repository.ProctorAssignmentRepository;
+import com.example.Panacea.student.entity.StudentProfile;
+import com.example.Panacea.student.service.StudentProfileService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -24,6 +29,8 @@ public class ProctorAssignmentService {
 
     private final ProctorAssignmentRepository proctorAssignmentRepository;
     private final UserRepository userRepository;
+    private final StudentProfileService studentProfileService;
+    private final FeePaymentRepository feePaymentRepository;
 
     @Transactional
     public ProctorAssignmentResponse assign(CreateProctorAssignmentRequest request) {
@@ -120,5 +127,48 @@ public class ProctorAssignmentService {
     public Optional<ProctorAssignmentResponse> findMentorForStudent(Long studentId) {
         return proctorAssignmentRepository.findByStudentIdAndAssignmentType(studentId, AssignmentType.MENTOR)
                 .map(ProctorAssignmentResponse::from);
+    }
+
+    /**
+     * The staff "My Mentees" roster: each MENTOR assignment for this staff member,
+     * enriched with the student's course/section (from their StudentProfile), their
+     * most recent fee payment status for their current semester, and the subjects
+     * they're actually enrolled in (core + approved electives — same list
+     * StudentProfileService#findMySubjects gives the student themselves). A mentee
+     * with no StudentProfile row (not yet set up by an admin) is simply skipped —
+     * there's no course/section/semester to report for them.
+     */
+    @Transactional(readOnly = true)
+    public List<MenteeResponse> findMenteesForStaff(Long staffId) {
+        return proctorAssignmentRepository.findByStaffIdAndAssignmentType(staffId, AssignmentType.MENTOR).stream()
+                .map(ProctorAssignment::getStudent)
+                .map(this::toMenteeResponse)
+                .flatMap(Optional::stream)
+                .toList();
+    }
+
+    private Optional<MenteeResponse> toMenteeResponse(User student) {
+        StudentProfile profile;
+        try {
+            profile = studentProfileService.getByUserId(student.getId());
+        } catch (EntityNotFoundException ex) {
+            return Optional.empty();
+        }
+
+        PaymentStatus feeStatus = feePaymentRepository
+                .findTopByStudentIdAndSemesterIdOrderByCreatedAtDesc(student.getId(), profile.getSemester().getId())
+                .map(payment -> payment.getStatus())
+                .orElse(null);
+
+        return Optional.of(new MenteeResponse(
+                student.getId(),
+                student.getFirstName() + " " + student.getLastName(),
+                student.getEmail(),
+                profile.getCourse().getId(),
+                profile.getCourse().getName(),
+                profile.getSection().getId(),
+                profile.getSection().getName(),
+                feeStatus,
+                studentProfileService.findMySubjects(student.getId())));
     }
 }

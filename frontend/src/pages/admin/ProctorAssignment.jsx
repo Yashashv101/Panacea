@@ -7,7 +7,7 @@ const labelClass = "text-xs font-medium uppercase tracking-wide text-slate";
 const primaryButtonClass =
   "w-fit rounded bg-oxblood px-5 py-2.5 text-sm font-medium text-paper transition-opacity hover:opacity-90 disabled:opacity-50";
 
-const EMPTY_FORM = { staffId: "", examSessionReference: "" };
+const EMPTY_FORM = { assignmentType: "EXAM", staffId: "", examSessionReference: "", studentId: "" };
 const MAX_CASELOAD = 25;
 
 function extractErrorMessage(err, fallback) {
@@ -21,6 +21,7 @@ function extractErrorMessage(err, fallback) {
 
 export default function ProctorAssignment() {
   const [staff, setStaff] = useState([]);
+  const [students, setStudents] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [form, setForm] = useState(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
@@ -35,12 +36,14 @@ export default function ProctorAssignment() {
       setLoading(true);
       setLoadError(null);
       try {
-        const [staffRes, assignmentsRes] = await Promise.all([
+        const [staffRes, studentsRes, assignmentsRes] = await Promise.all([
           apiClient.get("/users", { params: { role: "STAFF" } }),
+          apiClient.get("/users", { params: { role: "STUDENT" } }),
           apiClient.get("/proctor/assignments"),
         ]);
         if (cancelled) return;
         setStaff(staffRes.data);
+        setStudents(studentsRes.data);
         setAssignments(assignmentsRes.data);
       } catch {
         if (!cancelled) setLoadError("Could not load proctor assignments.");
@@ -55,10 +58,16 @@ export default function ProctorAssignment() {
     };
   }, []);
 
-  const caseloadByStaff = assignments.reduce((acc, a) => {
-    acc[a.staffId] = (acc[a.staffId] ?? 0) + 1;
+  // EXAM caseload and MENTOR caseload are each capped at 25 independently per
+  // staff member (ProctorAssignmentService), so they're counted separately here.
+  const caseloadByStaffAndType = assignments.reduce((acc, a) => {
+    const key = `${a.staffId}:${a.assignmentType}`;
+    acc[key] = (acc[key] ?? 0) + 1;
     return acc;
   }, {});
+  const mentoredStudentIds = new Set(
+    assignments.filter((a) => a.assignmentType === "MENTOR").map((a) => a.studentId)
+  );
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -67,7 +76,9 @@ export default function ProctorAssignment() {
     try {
       const { data } = await apiClient.post("/proctor/assignments", {
         staffId: Number(form.staffId),
-        examSessionReference: form.examSessionReference,
+        assignmentType: form.assignmentType,
+        examSessionReference: form.assignmentType === "EXAM" ? form.examSessionReference : null,
+        studentId: form.assignmentType === "MENTOR" ? Number(form.studentId) : null,
       });
       setAssignments((prev) => [...prev, data]);
       setForm(EMPTY_FORM);
@@ -79,7 +90,7 @@ export default function ProctorAssignment() {
     }
   }
 
-  const canCreate = staff.length > 0;
+  const canCreate = staff.length > 0 && (form.assignmentType === "EXAM" || students.length > 0);
 
   return (
     <div>
@@ -97,10 +108,25 @@ export default function ProctorAssignment() {
             <h2 className="mb-4 font-display text-lg font-semibold text-ink">Assign a proctor</h2>
 
             {!canCreate ? (
-              <p className="mb-4 text-sm text-slate">No staff members available to assign.</p>
+              <p className="mb-4 text-sm text-slate">
+                {staff.length === 0 ? "No staff members available to assign." : "No students available to mentor."}
+              </p>
             ) : (
               <form onSubmit={handleCreate} className="flex max-w-xl flex-col gap-5">
                 <div className="grid grid-cols-2 gap-5">
+                  <label className="flex flex-col gap-1.5">
+                    <span className={labelClass}>Type</span>
+                    <select
+                      value={form.assignmentType}
+                      onChange={(e) =>
+                        setForm((prev) => ({ ...prev, assignmentType: e.target.value, examSessionReference: "", studentId: "" }))
+                      }
+                      className={inputClass}
+                    >
+                      <option value="EXAM">Exam invigilation</option>
+                      <option value="MENTOR">Student mentor</option>
+                    </select>
+                  </label>
                   <label className="flex flex-col gap-1.5">
                     <span className={labelClass}>Staff</span>
                     <select
@@ -112,14 +138,19 @@ export default function ProctorAssignment() {
                       <option value="" disabled>
                         Select a staff member
                       </option>
-                      {staff.map((member) => (
-                        <option key={member.id} value={member.id}>
-                          {member.firstName} {member.lastName}
-                          {caseloadByStaff[member.id] ? ` (${caseloadByStaff[member.id]}/${MAX_CASELOAD})` : ""}
-                        </option>
-                      ))}
+                      {staff.map((member) => {
+                        const caseload = caseloadByStaffAndType[`${member.id}:${form.assignmentType}`] ?? 0;
+                        return (
+                          <option key={member.id} value={member.id}>
+                            {member.firstName} {member.lastName} ({caseload}/{MAX_CASELOAD})
+                          </option>
+                        );
+                      })}
                     </select>
                   </label>
+                </div>
+
+                {form.assignmentType === "EXAM" ? (
                   <label className="flex flex-col gap-1.5">
                     <span className={labelClass}>Exam session reference</span>
                     <input
@@ -130,7 +161,27 @@ export default function ProctorAssignment() {
                       className={inputClass}
                     />
                   </label>
-                </div>
+                ) : (
+                  <label className="flex flex-col gap-1.5">
+                    <span className={labelClass}>Student</span>
+                    <select
+                      required
+                      value={form.studentId}
+                      onChange={(e) => setForm((prev) => ({ ...prev, studentId: e.target.value }))}
+                      className={inputClass}
+                    >
+                      <option value="" disabled>
+                        Select a student
+                      </option>
+                      {students.map((student) => (
+                        <option key={student.id} value={student.id} disabled={mentoredStudentIds.has(student.id)}>
+                          {student.firstName} {student.lastName} ({student.email})
+                          {mentoredStudentIds.has(student.id) ? " — already mentored" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
 
                 {message && (
                   <p className={`text-sm ${message.tone === "success" ? "text-slate" : "text-oxblood"}`}>
@@ -155,9 +206,13 @@ export default function ProctorAssignment() {
                 {assignments.map((assignment) => (
                   <div key={assignment.id} className="flex items-center justify-between border-b border-brass/20 py-3">
                     <span className="text-sm text-ink">{assignment.staffName}</span>
-                    <span className="font-mono text-sm text-slate">{assignment.examSessionReference}</span>
+                    <span className="font-mono text-sm text-slate">
+                      {assignment.assignmentType === "EXAM"
+                        ? assignment.examSessionReference
+                        : `Mentor of ${assignment.studentName}`}
+                    </span>
                     <span className="font-mono text-xs text-slate">
-                      {caseloadByStaff[assignment.staffId]}/{MAX_CASELOAD}
+                      {caseloadByStaffAndType[`${assignment.staffId}:${assignment.assignmentType}`]}/{MAX_CASELOAD}
                     </span>
                   </div>
                 ))}

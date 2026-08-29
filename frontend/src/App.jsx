@@ -17,6 +17,10 @@ import EnterResults from "./pages/staff/EnterResults.jsx";
 import CreateQuiz from "./pages/staff/CreateQuiz.jsx";
 import QuizResults from "./pages/staff/QuizResults.jsx";
 import TakeQuiz from "./pages/student/TakeQuiz.jsx";
+import Electives from "./pages/student/Electives.jsx";
+import MyProctor from "./pages/student/MyProctor.jsx";
+import Mentees from "./pages/staff/Mentees.jsx";
+import ElectiveRequests from "./pages/staff/ElectiveRequests.jsx";
 
 function RootRoute() {
   const { role } = useAuth();
@@ -59,6 +63,22 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/electives"
+            element={
+              <ProtectedRoute allowedRoles={["STUDENT"]}>
+                <Electives />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/proctor"
+            element={
+              <ProtectedRoute allowedRoles={["STUDENT"]}>
+                <MyProctor />
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/staff/attendance"
@@ -89,6 +109,22 @@ export default function App() {
             element={
               <ProtectedRoute allowedRoles={["STAFF"]}>
                 <CreateQuiz />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/staff/mentees"
+            element={
+              <ProtectedRoute allowedRoles={["STAFF"]}>
+                <Mentees />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/staff/electives"
+            element={
+              <ProtectedRoute allowedRoles={["STAFF"]}>
+                <ElectiveRequests />
               </ProtectedRoute>
             }
           />

@@ -16,4 +16,6 @@ public interface FeePaymentRepository extends JpaRepository<FeePayment, Long> {
     List<FeePayment> findByStudentIdOrderByCreatedAtDesc(Long studentId);
 
     boolean existsByStudentIdAndSemesterIdAndStatus(Long studentId, Long semesterId, PaymentStatus status);
+
+    Optional<FeePayment> findTopByStudentIdAndSemesterIdOrderByCreatedAtDesc(Long studentId, Long semesterId);
 }

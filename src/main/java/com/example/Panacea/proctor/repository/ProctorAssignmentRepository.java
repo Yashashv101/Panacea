@@ -17,4 +17,6 @@ public interface ProctorAssignmentRepository extends JpaRepository<ProctorAssign
     Optional<ProctorAssignment> findByStudentIdAndAssignmentType(Long studentId, AssignmentType assignmentType);
 
     List<ProctorAssignment> findByStaffId(Long staffId);
+
+    List<ProctorAssignment> findByStaffIdAndAssignmentType(Long staffId, AssignmentType assignmentType);
 }

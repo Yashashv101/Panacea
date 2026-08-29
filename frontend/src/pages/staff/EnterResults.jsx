@@ -3,7 +3,7 @@ import apiClient from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import { inputClass, labelClass, primaryButtonClass, extractErrorMessage } from "../admin/academic/formStyles";
 
-const EMPTY_COMPONENTS = { test1: "", test2: "", quiz: "", experiential: "", see: "" };
+const EMPTY_COMPONENTS = { test1: "", test2: "", experiential: "", see: "" };
 
 export default function EnterResults() {
   const { userId } = useAuth();
@@ -119,7 +119,6 @@ export default function EnterResults() {
           setComponents({
             test1: String(res.data.test1),
             test2: String(res.data.test2),
-            quiz: String(res.data.quiz),
             experiential: String(res.data.experiential),
             see: String(res.data.see),
           });
@@ -158,7 +157,6 @@ export default function EnterResults() {
         semesterId: Number(semesterId),
         test1: Number(components.test1),
         test2: Number(components.test2),
-        quiz: Number(components.quiz),
         experiential: Number(components.experiential),
         see: Number(components.see),
       });
@@ -184,7 +182,6 @@ export default function EnterResults() {
     studentId &&
     components.test1 !== "" &&
     components.test2 !== "" &&
-    components.quiz !== "" &&
     components.experiential !== "" &&
     components.see !== "";
 
@@ -294,12 +291,14 @@ export default function EnterResults() {
               )}
             </div>
 
-            <div className="grid grid-cols-3 gap-5 sm:grid-cols-5">
+            <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
               <label className="flex flex-col gap-1.5">
-                <span className={labelClass}>Test 1</span>
+                <span className={labelClass}>Test 1 (/25)</span>
                 <input
                   type="number"
                   step="any"
+                  min={0}
+                  max={25}
                   required
                   value={components.test1}
                   onChange={(e) => updateComponent("test1", e.target.value)}
@@ -307,10 +306,12 @@ export default function EnterResults() {
                 />
               </label>
               <label className="flex flex-col gap-1.5">
-                <span className={labelClass}>Test 2</span>
+                <span className={labelClass}>Test 2 (/25)</span>
                 <input
                   type="number"
                   step="any"
+                  min={0}
+                  max={25}
                   required
                   value={components.test2}
                   onChange={(e) => updateComponent("test2", e.target.value)}
@@ -318,21 +319,12 @@ export default function EnterResults() {
                 />
               </label>
               <label className="flex flex-col gap-1.5">
-                <span className={labelClass}>Quiz</span>
+                <span className={labelClass}>Experiential (/30)</span>
                 <input
                   type="number"
                   step="any"
-                  required
-                  value={components.quiz}
-                  onChange={(e) => updateComponent("quiz", e.target.value)}
-                  className={inputClass}
-                />
-              </label>
-              <label className="flex flex-col gap-1.5">
-                <span className={labelClass}>Experiential</span>
-                <input
-                  type="number"
-                  step="any"
+                  min={0}
+                  max={30}
                   required
                   value={components.experiential}
                   onChange={(e) => updateComponent("experiential", e.target.value)}
@@ -351,6 +343,9 @@ export default function EnterResults() {
                 />
               </label>
             </div>
+            <p className="mt-3 text-xs text-slate">
+              The quiz component is sourced automatically from the student's most recent MCQ attempt for this subject.
+            </p>
           </section>
 
           {message && (

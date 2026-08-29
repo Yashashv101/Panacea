@@ -6,7 +6,7 @@ import { inputClass, labelClass, primaryButtonClass, rowActionClass, extractErro
 
 let nextQuestionKey = 0;
 function emptyQuestion() {
-  return { key: nextQuestionKey++, text: "", options: ["", ""], correctOptionIndex: 0 };
+  return { key: nextQuestionKey++, text: "", options: ["", ""], correctOptionIndex: 0, marks: "1" };
 }
 
 export default function CreateQuiz() {
@@ -19,6 +19,7 @@ export default function CreateQuiz() {
 
   const [subjectId, setSubjectId] = useState("");
   const [title, setTitle] = useState("");
+  const [rescaleToTen, setRescaleToTen] = useState(false);
   const [questions, setQuestions] = useState([emptyQuestion()]);
 
   const [submitting, setSubmitting] = useState(false);
@@ -98,7 +99,7 @@ export default function CreateQuiz() {
     subjectId &&
     title.trim() &&
     questions.length > 0 &&
-    questions.every((q) => q.text.trim() && q.options.every((o) => o.trim()));
+    questions.every((q) => q.text.trim() && q.options.every((o) => o.trim()) && Number(q.marks) >= 1);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -108,10 +109,12 @@ export default function CreateQuiz() {
       await apiClient.post("/mcq/quizzes", {
         title,
         subjectId: Number(subjectId),
+        rescaleToTen,
         questions: questions.map((q) => ({
           text: q.text,
           options: q.options,
           correctOptionIndex: q.correctOptionIndex,
+          marks: Number(q.marks) || 1,
         })),
       });
       navigate("/staff/quizzes");
@@ -192,6 +195,16 @@ export default function CreateQuiz() {
             </label>
           </div>
 
+          <label className="flex items-center gap-2.5">
+            <input
+              type="checkbox"
+              checked={rescaleToTen}
+              onChange={(e) => setRescaleToTen(e.target.checked)}
+              className="accent-oxblood"
+            />
+            <span className={labelClass}>Rescale final score to /10</span>
+          </label>
+
           <section>
             <div className="mb-2 flex items-baseline justify-between border-b border-brass/20 pb-2">
               <h2 className="font-display text-lg font-semibold text-ink">Questions</h2>
@@ -211,6 +224,18 @@ export default function CreateQuiz() {
                         required
                         value={question.text}
                         onChange={(e) => updateQuestion(question.key, { text: e.target.value })}
+                        className={inputClass}
+                      />
+                    </label>
+                    <label className="flex w-24 flex-col gap-1.5">
+                      <span className={labelClass}>Marks</span>
+                      <input
+                        type="number"
+                        min={1}
+                        step={1}
+                        required
+                        value={question.marks}
+                        onChange={(e) => updateQuestion(question.key, { marks: e.target.value })}
                         className={inputClass}
                       />
                     </label>

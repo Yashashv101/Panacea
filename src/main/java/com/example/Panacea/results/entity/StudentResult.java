@@ -20,9 +20,11 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * The 5 grading components are stored as separate columns; the total is never
+ * Test1/Test2/Experiential/SEE are stored as separate columns; the total is never
  * persisted (see {@code results.dto.StudentResultResponse#from}) so a change to the
- * grading weights never requires a migration or backfill.
+ * grading weights never requires a migration or backfill. The quiz component is
+ * NOT stored here at all — it is sourced live from the student's MCQ attempt(s)
+ * for this subject (see {@code ResultService}), since manual quiz entry was removed.
  */
 @Entity
 @Table(name = "student_results", uniqueConstraints = {
@@ -57,9 +59,6 @@ public class StudentResult {
 
     @Column(nullable = false)
     private Double test2;
-
-    @Column(nullable = false)
-    private Double quiz;
 
     @Column(nullable = false)
     private Double experiential;

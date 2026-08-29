@@ -90,7 +90,10 @@ function QuizList() {
                 </div>
                 {attempt ? (
                   <span className="font-mono text-sm text-slate">
-                    Attempted — {attempt.score}/{attempt.totalQuestions}
+                    Attempted —{" "}
+                    {attempt.rescaleToTen
+                      ? `${attempt.rescaledScore.toFixed(1)}/10`
+                      : `${attempt.rawScore}/${attempt.totalPossibleMarks}`}
                   </span>
                 ) : (
                   <Link to={`/quizzes/${quiz.id}`} className={rowActionClass}>
@@ -205,7 +208,9 @@ function QuizAttempt({ quizId }) {
           <p className="text-sm text-ink">
             You scored{" "}
             <span className="font-mono text-ink">
-              {finished.score}/{finished.totalQuestions}
+              {finished.rescaleToTen
+                ? `${finished.rescaledScore.toFixed(1)}/10`
+                : `${finished.rawScore}/${finished.totalPossibleMarks}`}
             </span>
             .
           </p>

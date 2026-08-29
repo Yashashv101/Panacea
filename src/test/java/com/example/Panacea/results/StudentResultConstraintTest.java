@@ -62,7 +62,6 @@ class StudentResultConstraintTest extends AbstractPostgresContainerTest {
                 .semester(semester)
                 .test1(18.0)
                 .test2(17.0)
-                .quiz(9.0)
                 .experiential(10.0)
                 .see(45.0)
                 .build();
@@ -74,7 +73,6 @@ class StudentResultConstraintTest extends AbstractPostgresContainerTest {
                 .semester(semester)
                 .test1(10.0)
                 .test2(10.0)
-                .quiz(5.0)
                 .experiential(5.0)
                 .see(30.0)
                 .build();

@@ -8,6 +8,8 @@ import com.example.Panacea.audit.service.AuditLogService;
 import com.example.Panacea.identity.entity.Role;
 import com.example.Panacea.identity.entity.User;
 import com.example.Panacea.identity.repository.UserRepository;
+import com.example.Panacea.mcq.entity.QuizAttempt;
+import com.example.Panacea.mcq.repository.QuizAttemptRepository;
 import com.example.Panacea.notifications.service.NotificationEventPublisher;
 import com.example.Panacea.results.dto.StudentResultResponse;
 import com.example.Panacea.results.dto.UpsertResultRequest;
@@ -30,6 +32,7 @@ public class ResultService {
     private final SubjectRepository subjectRepository;
     private final SemesterRepository semesterRepository;
     private final StudentResultRepository studentResultRepository;
+    private final QuizAttemptRepository quizAttemptRepository;
     private final NotificationEventPublisher notificationEventPublisher;
     private final AuditLogService auditLogService;
 
@@ -56,7 +59,6 @@ public class ResultService {
 
         result.setTest1(request.test1());
         result.setTest2(request.test2());
-        result.setQuiz(request.quiz());
         result.setExperiential(request.experiential());
         result.setSee(request.see());
 
@@ -68,13 +70,13 @@ public class ResultService {
         notificationEventPublisher.publish(saved.getStudent().getId(),
                 "Your result for " + saved.getSubject().getName() + " has been published.");
 
-        return StudentResultResponse.from(saved);
+        return toResponse(saved);
     }
 
     @Transactional(readOnly = true)
     public List<StudentResultResponse> findByStudent(Long studentId) {
         return studentResultRepository.findByStudentIdOrderBySemesterIdAsc(studentId).stream()
-                .map(StudentResultResponse::from)
+                .map(this::toResponse)
                 .toList();
     }
 
@@ -88,7 +90,26 @@ public class ResultService {
         requireSubjectOwnership(actor, subject);
 
         return studentResultRepository.findByStudentIdAndSubjectIdAndSemesterId(studentId, subjectId, semesterId)
-                .map(StudentResultResponse::from);
+                .map(this::toResponse);
+    }
+
+    private StudentResultResponse toResponse(StudentResult result) {
+        Optional<QuizAttempt> latestAttempt = quizAttemptRepository
+                .findFirstByStudentIdAndQuizSubjectIdOrderBySubmittedAtDesc(
+                        result.getStudent().getId(), result.getSubject().getId());
+
+        Double quizScore = latestAttempt.map(this::quizComponent).orElse(null);
+        Double quizMaxScore = latestAttempt.map(this::quizMaxScore).orElse(null);
+
+        return StudentResultResponse.from(result, quizScore, quizMaxScore);
+    }
+
+    private double quizComponent(QuizAttempt attempt) {
+        return attempt.getQuiz().isRescaleToTen() ? attempt.getRescaledScore() : attempt.getRawScore().doubleValue();
+    }
+
+    private double quizMaxScore(QuizAttempt attempt) {
+        return attempt.getQuiz().isRescaleToTen() ? 10.0 : attempt.getTotalPossibleMarks().doubleValue();
     }
 
     private static void requireSubjectOwnership(User actor, Subject subject) {

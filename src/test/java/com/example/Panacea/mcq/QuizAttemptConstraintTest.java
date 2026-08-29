@@ -64,7 +64,8 @@ class QuizAttemptConstraintTest extends AbstractPostgresContainerTest {
                 .quiz(quiz)
                 .student(student)
                 .answers(Map.of())
-                .score(0)
+                .rawScore(0)
+                .totalPossibleMarks(0)
                 .build();
         quizAttemptRepository.saveAndFlush(first);
 
@@ -72,7 +73,8 @@ class QuizAttemptConstraintTest extends AbstractPostgresContainerTest {
                 .quiz(quiz)
                 .student(student)
                 .answers(Map.of())
-                .score(0)
+                .rawScore(0)
+                .totalPossibleMarks(0)
                 .build();
 
         assertThrows(DataIntegrityViolationException.class,

@@ -114,10 +114,7 @@ export default function StudentDashboard() {
     setPayError(null);
     setPayingId(payment.id);
     try {
-      const { data } = await apiClient.post("/fees/payments/initiate", {
-        courseId: payment.courseId,
-        semesterId: payment.semesterId,
-      });
+      const { data } = await apiClient.post("/fees/payments/initiate");
       window.location.href = data.checkoutUrl;
     } catch {
       setPayError("Could not start the payment. Please try again.");
@@ -175,7 +172,15 @@ export default function StudentDashboard() {
           results.map((result) => (
             <Row
               key={result.id}
-              left={result.subjectName}
+              left={
+                <span className="flex flex-col gap-1">
+                  <span>{result.subjectName}</span>
+                  <span className="font-mono text-xs text-slate">
+                    T1 {result.test1 ?? "—"} · T2 {result.test2 ?? "—"} · Quiz {result.quiz ?? "—"} · Exp{" "}
+                    {result.experiential ?? "—"} · SEE {result.see ?? "—"}
+                  </span>
+                </span>
+              }
               right={
                 <span className="font-mono text-sm text-ink">
                   {result.total != null ? result.total.toFixed(1) : "—"}

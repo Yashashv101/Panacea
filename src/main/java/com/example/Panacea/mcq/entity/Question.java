@@ -17,6 +17,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -54,4 +55,11 @@ public class Question {
 
     @Column(name = "correct_option_index", nullable = false)
     private Integer correctOptionIndex;
+
+    // Staff-editable per question at quiz-creation time; defaults existing rows to 1 via
+    // @ColumnDefault so ddl-auto=update can add this NOT NULL column without a migration tool.
+    @Column(nullable = false)
+    @ColumnDefault("1")
+    @Builder.Default
+    private Integer marks = 1;
 }

@@ -56,6 +56,22 @@ function AttendanceTab({ subjectId }) {
   );
 }
 
+function CieBarRow({ label, value, max }) {
+  const hasValue = value != null && max != null && max > 0;
+  const pct = hasValue ? Math.max(0, Math.min(100, (value / max) * 100)) : 0;
+  return (
+    <div className="flex items-center gap-4 border-b border-brass/20 py-3">
+      <span className="w-32 shrink-0 truncate text-sm text-ink">{label}</span>
+      <div className="h-2 flex-1 rounded bg-brass/20">
+        <div className="h-2 rounded bg-oxblood" style={{ width: `${pct}%` }} />
+      </div>
+      <span className="w-24 shrink-0 text-right font-mono text-sm text-ink">
+        {hasValue ? `${value.toFixed(1)}/${max}` : "—"}
+      </span>
+    </div>
+  );
+}
+
 function ResultsTab({ subjectId }) {
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
@@ -81,30 +97,23 @@ function ResultsTab({ subjectId }) {
 
   return (
     <div className="flex flex-col gap-6">
-      {results.map((result) => (
-        <div key={result.id} className="border-b border-brass/20 pb-4">
-          <div className="mb-3 flex items-baseline justify-between">
-            <span className="text-sm font-medium text-ink">{result.semesterLabel}</span>
-            <span className="font-mono text-sm text-ink">
-              Total: {result.total != null ? result.total.toFixed(1) : "—"}
-            </span>
+      {results.map((result) => {
+        const quizMax = result.quizMaxScore != null ? Math.round(result.quizMaxScore * 10) / 10 : null;
+        return (
+          <div key={result.id} className="border-b border-brass/20 pb-2">
+            <div className="mb-3 flex items-baseline justify-between">
+              <span className="text-sm font-medium text-ink">{result.semesterLabel}</span>
+              <span className="font-mono text-sm text-ink">
+                Total: {result.total != null ? result.total.toFixed(1) : "—"}
+              </span>
+            </div>
+            <CieBarRow label="Test 1" value={result.test1} max={25} />
+            <CieBarRow label="Test 2" value={result.test2} max={25} />
+            <CieBarRow label={quizMax === 10 ? "Quiz (/10)" : "Quiz"} value={result.quiz} max={quizMax} />
+            <CieBarRow label="Experiential" value={result.experiential} max={30} />
           </div>
-          <div className="grid grid-cols-5 gap-3 text-center">
-            {[
-              ["Test 1", result.test1],
-              ["Test 2", result.test2],
-              ["Quiz", result.quiz],
-              ["Experiential", result.experiential],
-              ["SEE", result.see],
-            ].map(([label, value]) => (
-              <div key={label}>
-                <div className="font-mono text-sm text-ink">{value != null ? value.toFixed(1) : "—"}</div>
-                <div className="mt-1 text-[0.65rem] uppercase tracking-wide text-slate">{label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

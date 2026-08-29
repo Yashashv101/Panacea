@@ -18,6 +18,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -49,4 +50,11 @@ public class Quiz {
     @OneToMany(mappedBy = "quiz", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
     private List<Question> questions = new ArrayList<>();
+
+    // Staff-toggleable at creation. When true, QuizService converts the raw
+    // marks-based score to a /10 scale before storing it on QuizAttempt.
+    @Column(name = "rescale_to_ten", nullable = false)
+    @ColumnDefault("false")
+    @Builder.Default
+    private boolean rescaleToTen = false;
 }

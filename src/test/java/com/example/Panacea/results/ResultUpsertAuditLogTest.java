@@ -67,7 +67,7 @@ class ResultUpsertAuditLogTest extends AbstractPostgresContainerTest {
                 .build());
 
         UpsertResultRequest request = new UpsertResultRequest(
-                student.getId(), subject.getId(), semester.getId(), 8.0, 9.0, 4.0, 4.5, 45.0);
+                student.getId(), subject.getId(), semester.getId(), 8.0, 9.0, 4.5, 45.0);
 
         StudentResultResponse response = resultService.upsertResult(request, staff.getId());
 

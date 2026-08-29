@@ -61,8 +61,19 @@ public class QuizAttempt {
     @Builder.Default
     private Map<Long, Integer> answers = new HashMap<>();
 
-    @Column(nullable = false)
-    private Integer score;
+    // Sum of marks for correctly-answered questions, and the sum of all questions'
+    // marks at the time of the attempt (kept alongside the score so the ratio stays
+    // meaningful even if a quiz's questions are edited later).
+    @Column(name = "raw_score", nullable = false)
+    private Integer rawScore;
+
+    @Column(name = "total_possible_marks", nullable = false)
+    private Integer totalPossibleMarks;
+
+    // Only populated when the quiz's rescaleToTen flag was on at submission time;
+    // rawScore/totalPossibleMarks is always kept too so staff can see real performance.
+    @Column(name = "rescaled_score")
+    private Double rescaledScore;
 
     @CreationTimestamp
     @Column(name = "submitted_at", nullable = false, updatable = false)

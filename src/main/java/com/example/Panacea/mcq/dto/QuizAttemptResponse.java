@@ -9,8 +9,10 @@ public record QuizAttemptResponse(
         Long quizId,
         Long studentId,
         String studentName,
-        Integer score,
-        Integer totalQuestions,
+        Integer rawScore,
+        Integer totalPossibleMarks,
+        Double rescaledScore,
+        boolean rescaleToTen,
         Instant submittedAt
 ) {
     public static QuizAttemptResponse from(QuizAttempt attempt) {
@@ -19,8 +21,10 @@ public record QuizAttemptResponse(
                 attempt.getQuiz().getId(),
                 attempt.getStudent().getId(),
                 attempt.getStudent().getFirstName() + " " + attempt.getStudent().getLastName(),
-                attempt.getScore(),
-                attempt.getQuiz().getQuestions().size(),
+                attempt.getRawScore(),
+                attempt.getTotalPossibleMarks(),
+                attempt.getRescaledScore(),
+                attempt.getQuiz().isRescaleToTen(),
                 attempt.getSubmittedAt());
     }
 }

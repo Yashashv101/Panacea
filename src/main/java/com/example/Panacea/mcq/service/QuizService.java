@@ -46,6 +46,7 @@ public class QuizService {
                 .title(request.title())
                 .subject(subject)
                 .staff(staff)
+                .rescaleToTen(request.rescaleToTen())
                 .build();
         List<Question> questions = request.questions().stream()
                 .map(questionRequest -> toQuestion(questionRequest, quiz))
@@ -60,11 +61,13 @@ public class QuizService {
             throw new IllegalArgumentException(
                     "correctOptionIndex is out of bounds for question: " + request.text());
         }
+        int marks = request.marks() != null ? request.marks() : 1;
         return Question.builder()
                 .quiz(quiz)
                 .text(request.text())
                 .options(new ArrayList<>(request.options()))
                 .correctOptionIndex(request.correctOptionIndex())
+                .marks(marks)
                 .build();
     }
 
@@ -90,19 +93,27 @@ public class QuizService {
             throw new IllegalStateException("Student " + studentId + " has already attempted quiz " + quizId);
         }
 
-        int score = 0;
+        int rawScore = 0;
+        int totalPossibleMarks = 0;
         for (Question question : quiz.getQuestions()) {
+            totalPossibleMarks += question.getMarks();
             Integer selected = request.answers().get(question.getId());
             if (selected != null && selected.equals(question.getCorrectOptionIndex())) {
-                score++;
+                rawScore += question.getMarks();
             }
         }
+
+        Double rescaledScore = quiz.isRescaleToTen()
+                ? (totalPossibleMarks == 0 ? 0.0 : (rawScore / (double) totalPossibleMarks) * 10.0)
+                : null;
 
         QuizAttempt attempt = QuizAttempt.builder()
                 .quiz(quiz)
                 .student(student)
                 .answers(new HashMap<>(request.answers()))
-                .score(score)
+                .rawScore(rawScore)
+                .totalPossibleMarks(totalPossibleMarks)
+                .rescaledScore(rescaledScore)
                 .build();
 
         // The (quiz, student) unique constraint is the hard guarantee against a

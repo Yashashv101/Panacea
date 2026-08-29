@@ -15,11 +15,12 @@ public record QuizResponse(
         Long subjectId,
         String subjectName,
         Long staffId,
+        boolean rescaleToTen,
         List<QuestionResponse> questions
 ) {
-    public record QuestionResponse(Long id, String text, List<String> options) {
+    public record QuestionResponse(Long id, String text, List<String> options, Integer marks) {
         public static QuestionResponse from(com.example.Panacea.mcq.entity.Question question) {
-            return new QuestionResponse(question.getId(), question.getText(), question.getOptions());
+            return new QuestionResponse(question.getId(), question.getText(), question.getOptions(), question.getMarks());
         }
     }
 
@@ -30,6 +31,7 @@ public record QuizResponse(
                 quiz.getSubject().getId(),
                 quiz.getSubject().getName(),
                 quiz.getStaff().getId(),
+                quiz.isRescaleToTen(),
                 quiz.getQuestions().stream().map(QuestionResponse::from).toList());
     }
 }

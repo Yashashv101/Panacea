@@ -134,7 +134,9 @@ export default function QuizResults() {
                               {dateFormatter.format(new Date(attempt.submittedAt))}
                             </span>
                             <span className="font-mono text-sm text-ink">
-                              {attempt.score}/{attempt.totalQuestions}
+                              {attempt.rescaleToTen
+                                ? `${attempt.rescaledScore.toFixed(1)}/10`
+                                : `${attempt.rawScore}/${attempt.totalPossibleMarks}`}
                             </span>
                           </span>
                         </div>

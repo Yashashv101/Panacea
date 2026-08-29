@@ -11,4 +11,8 @@ public interface QuizAttemptRepository extends JpaRepository<QuizAttempt, Long> 
     Optional<QuizAttempt> findByQuizIdAndStudentId(Long quizId, Long studentId);
 
     List<QuizAttempt> findByQuizId(Long quizId);
+
+    // A student can attempt several quizzes for the same subject in one semester;
+    // ResultService uses the most recent one as "the quiz mark" for CIE purposes.
+    Optional<QuizAttempt> findFirstByStudentIdAndQuizSubjectIdOrderBySubmittedAtDesc(Long studentId, Long subjectId);
 }

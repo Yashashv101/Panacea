@@ -1,18 +1,15 @@
 package com.example.Panacea.fees.controller;
 
 import com.example.Panacea.fees.dto.FeePaymentResponse;
-import com.example.Panacea.fees.dto.InitiatePaymentRequest;
 import com.example.Panacea.fees.service.FeePaymentService;
 import com.example.Panacea.identity.security.UserPrincipal;
 import com.stripe.exception.StripeException;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -29,9 +26,8 @@ public class FeePaymentController {
     @PostMapping("/initiate")
     @PreAuthorize("hasRole('STUDENT')")
     @ResponseStatus(HttpStatus.CREATED)
-    public FeePaymentResponse initiate(@Valid @RequestBody InitiatePaymentRequest request,
-                                        @AuthenticationPrincipal UserPrincipal principal) throws StripeException {
-        return feePaymentService.initiate(request, principal.getId());
+    public FeePaymentResponse initiate(@AuthenticationPrincipal UserPrincipal principal) throws StripeException {
+        return feePaymentService.initiate(principal.getId());
     }
 
     @GetMapping("/me")

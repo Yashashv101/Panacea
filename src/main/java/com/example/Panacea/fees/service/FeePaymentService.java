@@ -1,7 +1,6 @@
 package com.example.Panacea.fees.service;
 
 import com.example.Panacea.fees.dto.FeePaymentResponse;
-import com.example.Panacea.fees.dto.InitiatePaymentRequest;
 import com.example.Panacea.fees.entity.FeePayment;
 import com.example.Panacea.fees.entity.FeeStructure;
 import com.example.Panacea.fees.entity.PaymentStatus;
@@ -9,6 +8,8 @@ import com.example.Panacea.fees.repository.FeePaymentRepository;
 import com.example.Panacea.fees.repository.FeeStructureRepository;
 import com.example.Panacea.identity.entity.User;
 import com.example.Panacea.identity.repository.UserRepository;
+import com.example.Panacea.student.entity.StudentProfile;
+import com.example.Panacea.student.service.StudentProfileService;
 import com.stripe.exception.StripeException;
 import com.stripe.model.checkout.Session;
 import com.stripe.param.checkout.SessionCreateParams;
@@ -28,6 +29,7 @@ public class FeePaymentService {
     private final FeePaymentRepository feePaymentRepository;
     private final FeeStructureRepository feeStructureRepository;
     private final UserRepository userRepository;
+    private final StudentProfileService studentProfileService;
 
     @Value("${panacea.stripe.currency}")
     private String currency;
@@ -38,14 +40,21 @@ public class FeePaymentService {
     @Value("${panacea.stripe.cancel-url}")
     private String cancelUrl;
 
+    /**
+     * The student always pays for themselves here — there is no admin/staff-
+     * initiated-on-a-student's-behalf path in this module — so course and
+     * semester are resolved from the student's own StudentProfile rather than
+     * taken from the request, same fix as ElectiveEnrollmentController#availableElectives.
+     */
     @Transactional
-    public FeePaymentResponse initiate(InitiatePaymentRequest request, Long studentId) throws StripeException {
+    public FeePaymentResponse initiate(Long studentId) throws StripeException {
         User student = userRepository.findById(studentId)
                 .orElseThrow(() -> new EntityNotFoundException("User " + studentId + " not found"));
+        StudentProfile profile = studentProfileService.getByUserId(studentId);
         FeeStructure feeStructure = feeStructureRepository
-                .findByCourseIdAndSemesterId(request.courseId(), request.semesterId())
+                .findByCourseIdAndSemesterId(profile.getCourse().getId(), profile.getSemester().getId())
                 .orElseThrow(() -> new EntityNotFoundException("No fee structure for course "
-                        + request.courseId() + " and semester " + request.semesterId()));
+                        + profile.getCourse().getId() + " and semester " + profile.getSemester().getId()));
 
         Session session = createCheckoutSession(feeStructure);
 

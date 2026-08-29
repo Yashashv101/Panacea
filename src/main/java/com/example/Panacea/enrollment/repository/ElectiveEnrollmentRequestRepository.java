@@ -17,4 +17,8 @@ public interface ElectiveEnrollmentRequestRepository extends JpaRepository<Elect
 
     boolean existsByStudentIdAndSubjectIdAndSemesterIdAndStatusIn(
             Long studentId, Long subjectId, Long semesterId, Collection<EnrollmentStatus> statuses);
+
+    List<ElectiveEnrollmentRequest> findByStudentIdAndStatus(Long studentId, EnrollmentStatus status);
+
+    boolean existsByStudentIdAndSubjectIdAndStatus(Long studentId, Long subjectId, EnrollmentStatus status);
 }

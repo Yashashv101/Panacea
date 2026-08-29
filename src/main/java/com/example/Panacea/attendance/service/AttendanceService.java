@@ -4,6 +4,7 @@ import com.example.Panacea.academic.entity.Section;
 import com.example.Panacea.academic.entity.Subject;
 import com.example.Panacea.academic.repository.SectionRepository;
 import com.example.Panacea.academic.repository.SubjectRepository;
+import com.example.Panacea.attendance.dto.AttendanceHistoryEntryResponse;
 import com.example.Panacea.attendance.dto.AttendancePercentageResponse;
 import com.example.Panacea.attendance.dto.AttendanceResponse;
 import com.example.Panacea.attendance.dto.MarkAttendanceRequest;
@@ -16,6 +17,7 @@ import com.example.Panacea.identity.entity.User;
 import com.example.Panacea.identity.repository.UserRepository;
 import com.example.Panacea.identity.entity.Role;
 import com.example.Panacea.notifications.service.NotificationEventPublisher;
+import com.example.Panacea.student.service.StudentProfileService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.Cache;
@@ -44,6 +46,7 @@ public class AttendanceService {
     private final NotificationEventPublisher notificationEventPublisher;
     private final AuditLogService auditLogService;
     private final CacheManager cacheManager;
+    private final StudentProfileService studentProfileService;
 
     static final String PERCENTAGE_CACHE = "attendancePercentage";
 
@@ -106,6 +109,21 @@ public class AttendanceService {
         long present = attendanceReportRepository.countPresentByStudentIdAndSubjectId(studentId, subjectId);
         double percentage = total == 0 ? 0.0 : (present * 100.0) / total;
         return new AttendancePercentageResponse(studentId, subjectId, total, present, percentage);
+    }
+
+    /**
+     * Session-by-session history behind the SubjectDetail page's Attendance tab. Guarded
+     * the same way the percentage-me endpoint isn't — that endpoint's studentId param
+     * already comes from the JWT principal, so a mismatched subjectId just yields an
+     * empty/zero result; this one returns individual session dates, so it goes through
+     * StudentProfileService#requireSubjectAccessible first.
+     */
+    @Transactional(readOnly = true)
+    public List<AttendanceHistoryEntryResponse> getHistory(Long studentId, Long subjectId) {
+        studentProfileService.requireSubjectAccessible(studentId, subjectId);
+        return attendanceReportRepository.findHistoryByStudentIdAndSubjectId(studentId, subjectId).stream()
+                .map(entry -> new AttendanceHistoryEntryResponse(entry.getDate(), entry.getPeriod(), entry.isPresent()))
+                .toList();
     }
 
     private static String percentageKey(Long studentId, Long subjectId) {

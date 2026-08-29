@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import apiClient from "../../api/client.js";
 import StatusStamp from "../../components/StatusStamp.jsx";
 
@@ -32,8 +33,23 @@ function Empty({ children }) {
   return <p className="border-b border-brass/20 py-3 text-sm text-slate">{children}</p>;
 }
 
+function AttendanceBarRow({ subject, percentage }) {
+  const pct = Math.max(0, Math.min(100, percentage));
+  return (
+    <Link
+      to={`/subjects/${subject.id}`}
+      className="group flex items-center gap-4 border-b border-brass/20 py-3 transition-colors hover:bg-card"
+    >
+      <span className="w-40 shrink-0 truncate text-sm text-ink group-hover:text-oxblood">{subject.name}</span>
+      <div className="h-2 flex-1 rounded bg-brass/20">
+        <div className="h-2 rounded bg-oxblood" style={{ width: `${pct}%` }} />
+      </div>
+      <span className="w-16 shrink-0 text-right font-mono text-sm text-ink">{pct.toFixed(1)}%</span>
+    </Link>
+  );
+}
+
 export default function StudentDashboard() {
-  const [subjects, setSubjects] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [results, setResults] = useState([]);
   const [semesters, setSemesters] = useState([]);
@@ -49,7 +65,7 @@ export default function StudentDashboard() {
     async function load() {
       try {
         const [subjectsRes, resultsRes, semestersRes, paymentsRes] = await Promise.all([
-          apiClient.get("/subjects"),
+          apiClient.get("/students/me/subjects"),
           apiClient.get("/results/me"),
           apiClient.get("/semesters"),
           apiClient.get("/fees/payments/me"),
@@ -65,8 +81,7 @@ export default function StudentDashboard() {
         );
 
         if (cancelled) return;
-        setAttendance(percentages.filter((row) => row.totalSessions > 0));
-        setSubjects(subjectsRes.data);
+        setAttendance(percentages);
         setResults(resultsRes.data);
         setSemesters(semestersRes.data);
         setPayments(paymentsRes.data);
@@ -145,14 +160,10 @@ export default function StudentDashboard() {
 
       <Section title="Attendance">
         {attendance.length === 0 ? (
-          <Empty>No attendance recorded yet.</Empty>
+          <Empty>No subjects assigned yet.</Empty>
         ) : (
           attendance.map((row) => (
-            <Row
-              key={row.subject.id}
-              left={row.subject.name}
-              right={<span className="font-mono text-sm text-ink">{row.percentage.toFixed(1)}%</span>}
-            />
+            <AttendanceBarRow key={row.subject.id} subject={row.subject} percentage={row.percentage} />
           ))
         )}
       </Section>

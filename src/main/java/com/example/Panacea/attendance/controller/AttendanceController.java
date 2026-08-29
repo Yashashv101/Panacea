@@ -1,5 +1,6 @@
 package com.example.Panacea.attendance.controller;
 
+import com.example.Panacea.attendance.dto.AttendanceHistoryEntryResponse;
 import com.example.Panacea.attendance.dto.AttendancePercentageResponse;
 import com.example.Panacea.attendance.dto.AttendanceResponse;
 import com.example.Panacea.attendance.dto.MarkAttendanceRequest;
@@ -16,6 +17,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/attendance")
@@ -43,5 +46,12 @@ public class AttendanceController {
     public AttendancePercentageResponse myPercentage(@RequestParam Long subjectId,
                                                        @AuthenticationPrincipal UserPrincipal principal) {
         return attendanceService.computePercentage(principal.getId(), subjectId);
+    }
+
+    @GetMapping("/history/me")
+    @PreAuthorize("hasRole('STUDENT')")
+    public List<AttendanceHistoryEntryResponse> myHistory(@RequestParam Long subjectId,
+                                                            @AuthenticationPrincipal UserPrincipal principal) {
+        return attendanceService.getHistory(principal.getId(), subjectId);
     }
 }

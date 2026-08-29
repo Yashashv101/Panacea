@@ -5,6 +5,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Login from "./pages/Login";
 import PaymentReturn from "./pages/student/PaymentReturn.jsx";
 import StudentDashboard from "./pages/student/StudentDashboard.jsx";
+import SubjectDetail from "./pages/SubjectDetail.jsx";
 import Users from "./pages/admin/Users";
 import AcademicStructure from "./pages/admin/AcademicStructure";
 import TimetableGeneration from "./pages/admin/TimetableGeneration";
@@ -46,6 +47,15 @@ export default function App() {
           }
         >
           <Route path="/" element={<RootRoute />} />
+
+          <Route
+            path="/subjects/:subjectId"
+            element={
+              <ProtectedRoute allowedRoles={["STUDENT"]}>
+                <SubjectDetail />
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/quizzes"

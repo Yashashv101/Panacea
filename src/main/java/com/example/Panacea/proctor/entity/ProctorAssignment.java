@@ -18,6 +18,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
@@ -57,12 +58,19 @@ public class ProctorAssignment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // columnDefinition carries an explicit default so that Hibernate's ddl-auto=update
-    // ALTER TABLE ADD COLUMN succeeds against the 28 pre-existing rows (all EXAM,
-    // confirmed via `select count(*), count(exam_session_reference)` before this change)
-    // instead of failing on a NOT NULL column with no default on a non-empty table.
+    // The default is declared via @ColumnDefault, not columnDefinition: Hibernate's
+    // ddl-auto=update schema comparison treats a default folded into columnDefinition
+    // as part of the column's type declaration, so a later mismatch triggers a
+    // single generated "ALTER COLUMN assignment_type SET DATA TYPE varchar(20)
+    // default 'EXAM'" statement, which Postgres rejects (type change and default
+    // change are separate ALTER COLUMN clauses). @ColumnDefault keeps Hibernate's
+    // default-value comparison on its own path, so a mismatch instead emits a
+    // standalone "ALTER COLUMN assignment_type SET DEFAULT 'EXAM'". The default
+    // itself dates back to adding this NOT NULL column against 28 pre-existing
+    // (all EXAM) rows, and is already applied at the DB level from that migration.
     @Enumerated(EnumType.STRING)
-    @Column(name = "assignment_type", nullable = false, columnDefinition = "varchar(20) default 'EXAM'")
+    @Column(name = "assignment_type", nullable = false, length = 20)
+    @ColumnDefault("'EXAM'")
     private AssignmentType assignmentType;
 
     @ManyToOne(fetch = FetchType.LAZY)

@@ -5,6 +5,7 @@ import com.example.Panacea.academic.entity.Subject;
 import com.example.Panacea.academic.repository.SemesterRepository;
 import com.example.Panacea.academic.repository.SubjectRepository;
 import com.example.Panacea.audit.service.AuditLogService;
+import com.example.Panacea.identity.entity.Role;
 import com.example.Panacea.identity.entity.User;
 import com.example.Panacea.identity.repository.UserRepository;
 import com.example.Panacea.notifications.service.NotificationEventPublisher;
@@ -14,10 +15,12 @@ import com.example.Panacea.results.entity.StudentResult;
 import com.example.Panacea.results.repository.StudentResultRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -40,6 +43,8 @@ public class ResultService {
                 .orElseThrow(() -> new EntityNotFoundException("Subject " + request.subjectId() + " not found"));
         Semester semester = semesterRepository.findById(request.semesterId())
                 .orElseThrow(() -> new EntityNotFoundException("Semester " + request.semesterId() + " not found"));
+
+        requireSubjectOwnership(actor, subject);
 
         StudentResult result = studentResultRepository
                 .findByStudentIdAndSubjectIdAndSemesterId(request.studentId(), request.subjectId(), request.semesterId())
@@ -71,5 +76,25 @@ public class ResultService {
         return studentResultRepository.findByStudentIdOrderBySemesterIdAsc(studentId).stream()
                 .map(StudentResultResponse::from)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<StudentResultResponse> findOne(Long studentId, Long subjectId, Long semesterId, Long actorId) {
+        User actor = userRepository.findById(actorId)
+                .orElseThrow(() -> new EntityNotFoundException("User " + actorId + " not found"));
+        Subject subject = subjectRepository.findById(subjectId)
+                .orElseThrow(() -> new EntityNotFoundException("Subject " + subjectId + " not found"));
+
+        requireSubjectOwnership(actor, subject);
+
+        return studentResultRepository.findByStudentIdAndSubjectIdAndSemesterId(studentId, subjectId, semesterId)
+                .map(StudentResultResponse::from);
+    }
+
+    private static void requireSubjectOwnership(User actor, Subject subject) {
+        if (actor.getRole() == Role.STAFF
+                && (subject.getPrimaryStaff() == null || !subject.getPrimaryStaff().getId().equals(actor.getId()))) {
+            throw new AccessDeniedException("You are not the primary staff for this subject");
+        }
     }
 }

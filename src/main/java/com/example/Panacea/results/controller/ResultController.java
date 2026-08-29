@@ -6,12 +6,14 @@ import com.example.Panacea.results.dto.UpsertResultRequest;
 import com.example.Panacea.results.service.ResultService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -34,5 +36,16 @@ public class ResultController {
     @PreAuthorize("hasRole('STUDENT')")
     public List<StudentResultResponse> myResults(@AuthenticationPrincipal UserPrincipal principal) {
         return resultService.findByStudent(principal.getId());
+    }
+
+    @GetMapping
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+    public ResponseEntity<StudentResultResponse> findOne(@RequestParam Long studentId,
+                                                           @RequestParam Long subjectId,
+                                                           @RequestParam Long semesterId,
+                                                           @AuthenticationPrincipal UserPrincipal principal) {
+        return resultService.findOne(studentId, subjectId, semesterId, principal.getId())
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 }

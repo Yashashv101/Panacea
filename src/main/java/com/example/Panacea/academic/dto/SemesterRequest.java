@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Positive;
 
 public record SemesterRequest(
         @NotNull @Positive Integer number,
-        @NotBlank String label
+        @NotBlank String label,
+        @NotNull Long sessionId
 ) {
 }

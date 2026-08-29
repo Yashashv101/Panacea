@@ -3,7 +3,10 @@ package com.example.Panacea.identity.service;
 import com.example.Panacea.identity.entity.Role;
 import com.example.Panacea.identity.entity.User;
 import com.example.Panacea.identity.dto.CreateUserRequest;
+import com.example.Panacea.identity.dto.UpdateUserRequest;
 import com.example.Panacea.identity.repository.UserRepository;
+import com.example.Panacea.student.service.StudentProfileService;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -17,6 +20,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final StudentProfileService studentProfileService;
 
     @Transactional(readOnly = true)
     public List<User> listUsers(Role role) {
@@ -38,6 +42,29 @@ public class UserService {
                 .enabled(true)
                 .build();
 
-        return userRepository.save(user);
+        User saved = userRepository.save(user);
+
+        if (saved.getRole() == Role.STUDENT) {
+            studentProfileService.createOrUpdate(saved, request.courseId(), request.sectionId(), request.semesterId());
+        }
+
+        return saved;
+    }
+
+    @Transactional
+    public User updateUser(Long id, UpdateUserRequest request) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("User " + id + " not found"));
+
+        user.setFirstName(request.firstName());
+        user.setLastName(request.lastName());
+        user.setEnabled(request.enabled());
+        User saved = userRepository.save(user);
+
+        if (saved.getRole() == Role.STUDENT) {
+            studentProfileService.createOrUpdate(saved, request.courseId(), request.sectionId(), request.semesterId());
+        }
+
+        return saved;
     }
 }

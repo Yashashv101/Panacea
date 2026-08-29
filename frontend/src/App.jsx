@@ -4,7 +4,6 @@ import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Login from "./pages/Login";
 import PaymentReturn from "./pages/student/PaymentReturn.jsx";
-import Placeholder from "./pages/Placeholder";
 import StudentDashboard from "./pages/student/StudentDashboard.jsx";
 import Users from "./pages/admin/Users";
 import AcademicStructure from "./pages/admin/AcademicStructure";
@@ -17,10 +16,14 @@ import MarkAttendance from "./pages/staff/MarkAttendance.jsx";
 import EnterResults from "./pages/staff/EnterResults.jsx";
 import CreateQuiz from "./pages/staff/CreateQuiz.jsx";
 import QuizResults from "./pages/staff/QuizResults.jsx";
+import TakeQuiz from "./pages/student/TakeQuiz.jsx";
 
 function RootRoute() {
   const { role } = useAuth();
-  return role === "STUDENT" ? <StudentDashboard /> : <Navigate to="/records" replace />;
+  if (role === "STUDENT") return <StudentDashboard />;
+  if (role === "STAFF") return <Navigate to="/staff/attendance" replace />;
+  if (role === "ADMIN") return <Navigate to="/admin/users" replace />;
+  return <Navigate to="/login" replace />;
 }
 
 export default function App() {
@@ -39,12 +42,23 @@ export default function App() {
           }
         >
           <Route path="/" element={<RootRoute />} />
-          <Route path="/records" element={<Placeholder title="Records" />} />
-          <Route path="/timetable" element={<Placeholder title="Timetable" />} />
-          <Route path="/attendance" element={<Placeholder title="Attendance" />} />
-          <Route path="/fees" element={<Placeholder title="Fees" />} />
-          <Route path="/results" element={<Placeholder title="Results" />} />
-          <Route path="/leave" element={<Placeholder title="Leave" />} />
+
+          <Route
+            path="/quizzes"
+            element={
+              <ProtectedRoute allowedRoles={["STUDENT"]}>
+                <TakeQuiz />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/quizzes/:quizId"
+            element={
+              <ProtectedRoute allowedRoles={["STUDENT"]}>
+                <TakeQuiz />
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/staff/attendance"
@@ -137,7 +151,7 @@ export default function App() {
           />
         </Route>
 
-        <Route path="*" element={<Navigate to="/records" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AuthProvider>
   );

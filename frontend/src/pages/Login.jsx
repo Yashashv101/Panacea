@@ -3,8 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 const ROLE_HOME = {
-  ADMIN: "/records",
-  STAFF: "/records",
+  ADMIN: "/admin/users",
+  STAFF: "/staff/attendance",
   STUDENT: "/",
 };
 
@@ -22,7 +22,7 @@ export default function Login() {
     setSubmitting(true);
     try {
       const role = await login(email, password);
-      navigate(ROLE_HOME[role] ?? "/records");
+      navigate(ROLE_HOME[role] ?? "/");
     } catch {
       setError("Invalid email or password.");
     } finally {

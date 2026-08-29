@@ -1,13 +1,9 @@
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
-const NAV_ITEMS = [
-  { to: "/records", label: "Records" },
-  { to: "/timetable", label: "Timetable" },
-  { to: "/attendance", label: "Attendance" },
-  { to: "/fees", label: "Fees" },
-  { to: "/results", label: "Results" },
-  { to: "/leave", label: "Leave" },
+const STUDENT_NAV_ITEMS = [
+  { to: "/", label: "Dashboard" },
+  { to: "/quizzes", label: "Quizzes" },
 ];
 
 const STAFF_NAV_ITEMS = [
@@ -36,8 +32,10 @@ export default function Sidebar() {
     role === "ADMIN"
       ? ADMIN_NAV_ITEMS
       : role === "STAFF"
-      ? [...NAV_ITEMS, ...STAFF_NAV_ITEMS, ...STAFF_QUIZ_NAV_ITEMS]
-      : NAV_ITEMS;
+      ? [...STAFF_NAV_ITEMS, ...STAFF_QUIZ_NAV_ITEMS]
+      : role === "STUDENT"
+      ? STUDENT_NAV_ITEMS
+      : [];
 
   return (
     <aside className="flex w-56 shrink-0 flex-col border-r border-brass/30 bg-paper">
@@ -49,7 +47,7 @@ export default function Sidebar() {
           <NavLink
             key={item.to}
             to={item.to}
-            end={item.to === "/staff/quizzes"}
+            end={item.to === "/" || item.to === "/staff/quizzes" || item.to === "/quizzes"}
             className={({ isActive }) =>
               `border-b border-brass/10 px-5 py-3 text-sm transition-colors ${
                 isActive ? "bg-card font-medium text-oxblood" : "text-slate hover:text-ink"

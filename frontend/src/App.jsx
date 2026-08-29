@@ -1,9 +1,11 @@
 import { Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "./context/AuthContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Login from "./pages/Login";
+import PaymentReturn from "./pages/student/PaymentReturn.jsx";
 import Placeholder from "./pages/Placeholder";
+import StudentDashboard from "./pages/student/StudentDashboard.jsx";
 import Users from "./pages/admin/Users";
 import AcademicStructure from "./pages/admin/AcademicStructure";
 import TimetableGeneration from "./pages/admin/TimetableGeneration";
@@ -12,11 +14,18 @@ import FeesOverview from "./pages/admin/FeesOverview";
 import FeedbackQueue from "./pages/admin/FeedbackQueue";
 import ProctorAssignment from "./pages/admin/ProctorAssignment";
 
+function RootRoute() {
+  const { role } = useAuth();
+  return role === "STUDENT" ? <StudentDashboard /> : <Navigate to="/records" replace />;
+}
+
 export default function App() {
   return (
     <AuthProvider>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/fees/success" element={<PaymentReturn variant="success" />} />
+        <Route path="/fees/cancel" element={<PaymentReturn variant="cancel" />} />
 
         <Route
           element={
@@ -25,6 +34,7 @@ export default function App() {
             </ProtectedRoute>
           }
         >
+          <Route path="/" element={<RootRoute />} />
           <Route path="/records" element={<Placeholder title="Records" />} />
           <Route path="/timetable" element={<Placeholder title="Timetable" />} />
           <Route path="/attendance" element={<Placeholder title="Attendance" />} />
@@ -90,7 +100,6 @@ export default function App() {
           />
         </Route>
 
-        <Route path="/" element={<Navigate to="/records" replace />} />
         <Route path="*" element={<Navigate to="/records" replace />} />
       </Routes>
     </AuthProvider>

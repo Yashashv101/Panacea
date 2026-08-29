@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 const ROLE_HOME = {
   ADMIN: "/records",
   STAFF: "/records",
-  STUDENT: "/attendance",
+  STUDENT: "/",
 };
 
 export default function Login() {

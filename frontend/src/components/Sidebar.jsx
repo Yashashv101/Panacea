@@ -22,7 +22,7 @@ const ADMIN_NAV_ITEMS = [
 
 export default function Sidebar() {
   const { role } = useAuth();
-  const items = role === "ADMIN" ? [...NAV_ITEMS, ...ADMIN_NAV_ITEMS] : NAV_ITEMS;
+  const items = role === "ADMIN" ? ADMIN_NAV_ITEMS : NAV_ITEMS;
 
   return (
     <aside className="flex w-56 shrink-0 flex-col border-r border-brass/30 bg-paper">

@@ -10,6 +10,16 @@ const NAV_ITEMS = [
   { to: "/leave", label: "Leave" },
 ];
 
+const STAFF_NAV_ITEMS = [
+  { to: "/staff/attendance", label: "Mark Attendance" },
+  { to: "/staff/results", label: "Enter Results" },
+];
+
+const STAFF_QUIZ_NAV_ITEMS = [
+  { to: "/staff/quizzes", label: "Quizzes" },
+  { to: "/staff/quizzes/new", label: "New Quiz" },
+];
+
 const ADMIN_NAV_ITEMS = [
   { to: "/admin/users", label: "Users" },
   { to: "/admin/academic-structure", label: "Academic Structure" },
@@ -22,7 +32,12 @@ const ADMIN_NAV_ITEMS = [
 
 export default function Sidebar() {
   const { role } = useAuth();
-  const items = role === "ADMIN" ? ADMIN_NAV_ITEMS : NAV_ITEMS;
+  const items =
+    role === "ADMIN"
+      ? ADMIN_NAV_ITEMS
+      : role === "STAFF"
+      ? [...NAV_ITEMS, ...STAFF_NAV_ITEMS, ...STAFF_QUIZ_NAV_ITEMS]
+      : NAV_ITEMS;
 
   return (
     <aside className="flex w-56 shrink-0 flex-col border-r border-brass/30 bg-paper">
@@ -34,6 +49,7 @@ export default function Sidebar() {
           <NavLink
             key={item.to}
             to={item.to}
+            end={item.to === "/staff/quizzes"}
             className={({ isActive }) =>
               `border-b border-brass/10 px-5 py-3 text-sm transition-colors ${
                 isActive ? "bg-card font-medium text-oxblood" : "text-slate hover:text-ink"

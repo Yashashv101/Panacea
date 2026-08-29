@@ -2,6 +2,7 @@ package com.example.Panacea.mcq.service;
 
 import com.example.Panacea.academic.entity.Subject;
 import com.example.Panacea.academic.repository.SubjectRepository;
+import com.example.Panacea.identity.entity.Role;
 import com.example.Panacea.identity.entity.User;
 import com.example.Panacea.identity.repository.UserRepository;
 import com.example.Panacea.mcq.dto.CreateQuizRequest;
@@ -15,6 +16,7 @@ import com.example.Panacea.mcq.repository.QuizAttemptRepository;
 import com.example.Panacea.mcq.repository.QuizRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +39,8 @@ public class QuizService {
                 .orElseThrow(() -> new EntityNotFoundException("Subject " + request.subjectId() + " not found"));
         User staff = userRepository.findById(staffId)
                 .orElseThrow(() -> new EntityNotFoundException("User " + staffId + " not found"));
+
+        requireSubjectOwnership(staff, subject);
 
         Quiz quiz = Quiz.builder()
                 .title(request.title())
@@ -114,7 +118,21 @@ public class QuizService {
     }
 
     @Transactional(readOnly = true)
-    public List<QuizAttemptResponse> findAttempts(Long quizId) {
+    public List<QuizAttemptResponse> findAttempts(Long quizId, Long actorId) {
+        Quiz quiz = quizRepository.findById(quizId)
+                .orElseThrow(() -> new EntityNotFoundException("Quiz " + quizId + " not found"));
+        User actor = userRepository.findById(actorId)
+                .orElseThrow(() -> new EntityNotFoundException("User " + actorId + " not found"));
+
+        requireSubjectOwnership(actor, quiz.getSubject());
+
         return quizAttemptRepository.findByQuizId(quizId).stream().map(QuizAttemptResponse::from).toList();
+    }
+
+    private static void requireSubjectOwnership(User actor, Subject subject) {
+        if (actor.getRole() == Role.STAFF
+                && (subject.getPrimaryStaff() == null || !subject.getPrimaryStaff().getId().equals(actor.getId()))) {
+            throw new AccessDeniedException("You are not the primary staff for this subject");
+        }
     }
 }

@@ -13,6 +13,10 @@ import LeaveQueue from "./pages/admin/LeaveQueue";
 import FeesOverview from "./pages/admin/FeesOverview";
 import FeedbackQueue from "./pages/admin/FeedbackQueue";
 import ProctorAssignment from "./pages/admin/ProctorAssignment";
+import MarkAttendance from "./pages/staff/MarkAttendance.jsx";
+import EnterResults from "./pages/staff/EnterResults.jsx";
+import CreateQuiz from "./pages/staff/CreateQuiz.jsx";
+import QuizResults from "./pages/staff/QuizResults.jsx";
 
 function RootRoute() {
   const { role } = useAuth();
@@ -41,6 +45,39 @@ export default function App() {
           <Route path="/fees" element={<Placeholder title="Fees" />} />
           <Route path="/results" element={<Placeholder title="Results" />} />
           <Route path="/leave" element={<Placeholder title="Leave" />} />
+
+          <Route
+            path="/staff/attendance"
+            element={
+              <ProtectedRoute allowedRoles={["STAFF"]}>
+                <MarkAttendance />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/staff/results"
+            element={
+              <ProtectedRoute allowedRoles={["STAFF"]}>
+                <EnterResults />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/staff/quizzes"
+            element={
+              <ProtectedRoute allowedRoles={["STAFF"]}>
+                <QuizResults />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/staff/quizzes/new"
+            element={
+              <ProtectedRoute allowedRoles={["STAFF"]}>
+                <CreateQuiz />
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/admin/users"

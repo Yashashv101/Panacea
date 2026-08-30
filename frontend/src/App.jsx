@@ -8,6 +8,7 @@ import StudentDashboard from "./pages/student/StudentDashboard.jsx";
 import SubjectDetail from "./pages/SubjectDetail.jsx";
 import Users from "./pages/admin/Users";
 import AcademicStructure from "./pages/admin/AcademicStructure";
+import CalendarManagement from "./pages/admin/CalendarManagement";
 import TimetableGeneration from "./pages/admin/TimetableGeneration";
 import LeaveQueue from "./pages/admin/LeaveQueue";
 import FeesOverview from "./pages/admin/FeesOverview";
@@ -196,6 +197,14 @@ export default function App() {
             element={
               <ProtectedRoute allowedRoles={["ADMIN"]}>
                 <AcademicStructure />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/calendar"
+            element={
+              <ProtectedRoute allowedRoles={["ADMIN"]}>
+                <CalendarManagement />
               </ProtectedRoute>
             }
           />

@@ -1,9 +1,13 @@
 package com.example.Panacea.timetable.controller;
 
 import com.example.Panacea.identity.security.UserPrincipal;
+import com.example.Panacea.timetable.dto.BatchTimetableGenerationResponse;
+import com.example.Panacea.timetable.dto.GenerateCourseTimetableRequest;
 import com.example.Panacea.timetable.dto.GenerateTimetableRequest;
+import com.example.Panacea.timetable.dto.PublishTimetableRequest;
 import com.example.Panacea.timetable.dto.TimetableEntryResponse;
 import com.example.Panacea.timetable.dto.TimetableGenerationResponse;
+import com.example.Panacea.timetable.dto.TimetablePublishResponse;
 import com.example.Panacea.timetable.service.TimetableService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +34,20 @@ public class TimetableController {
     public TimetableGenerationResponse generate(@Valid @RequestBody GenerateTimetableRequest request,
                                                  @AuthenticationPrincipal UserPrincipal principal) {
         return timetableService.generate(request, principal.getId());
+    }
+
+    @PostMapping("/generate-for-course")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HOD')")
+    public BatchTimetableGenerationResponse generateForCourse(@Valid @RequestBody GenerateCourseTimetableRequest request,
+                                                               @AuthenticationPrincipal UserPrincipal principal) {
+        return timetableService.generateForCourse(request, principal.getId());
+    }
+
+    @PostMapping("/publish")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HOD')")
+    public TimetablePublishResponse publish(@Valid @RequestBody PublishTimetableRequest request,
+                                             @AuthenticationPrincipal UserPrincipal principal) {
+        return timetableService.publishForCourse(request, principal.getId());
     }
 
     @GetMapping("/section/{sectionId}")

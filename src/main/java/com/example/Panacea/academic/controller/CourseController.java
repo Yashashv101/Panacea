@@ -3,12 +3,13 @@ package com.example.Panacea.academic.controller;
 import com.example.Panacea.academic.service.CourseService;
 import com.example.Panacea.academic.dto.CourseRequest;
 import com.example.Panacea.academic.dto.CourseResponse;
+import com.example.Panacea.academic.dto.SetActiveRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -49,10 +50,9 @@ public class CourseController {
         return CourseResponse.from(courseService.update(id, request));
     }
 
-    @DeleteMapping("/{id}")
+    @PatchMapping("/{id}/active")
     @PreAuthorize("hasRole('ADMIN')")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable Long id) {
-        courseService.delete(id);
+    public CourseResponse setActive(@PathVariable Long id, @Valid @RequestBody SetActiveRequest request) {
+        return CourseResponse.from(courseService.setActive(id, request.active()));
     }
 }

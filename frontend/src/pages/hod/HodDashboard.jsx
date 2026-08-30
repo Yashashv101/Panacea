@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import apiClient from "../../api/client";
+import UpcomingCalendar from "../../components/UpcomingCalendar";
 
 function Row({ label, value, to }) {
   const content = (
@@ -61,6 +62,8 @@ export default function HodDashboard() {
       <div className="mb-6 border-b border-brass/20 pb-4">
         <h1 className="font-display text-2xl font-semibold text-ink">HOD Dashboard</h1>
       </div>
+
+      <UpcomingCalendar />
 
       {loading ? (
         <p className="text-sm text-slate">Loading…</p>

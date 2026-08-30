@@ -1,5 +1,6 @@
 package com.example.Panacea.session.service;
 
+import com.example.Panacea.academic.service.SemesterService;
 import com.example.Panacea.session.dto.SessionRequest;
 import com.example.Panacea.session.entity.Session;
 import com.example.Panacea.session.repository.SessionRepository;
@@ -14,7 +15,21 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SessionService {
 
+    /**
+     * Every academic year (Session) runs all SEMESTERS_PER_SESSION numbered
+     * semesters concurrently — one per cohort-year of this codebase's 4-year
+     * engineering programs (BE-CSE/ISE/AIML) — so a new Session auto-creates
+     * its own full set rather than leaving semester creation manual. Manual
+     * creation was rejected: the timetable flow needs "select session ->
+     * select semester -> department" to always resolve real data, and a
+     * forgotten manual follow-up (Session and Semester are separate admin
+     * screens) would silently block subjects/students/timetable generation
+     * for that entire session until someone noticed the empty dropdown.
+     */
+    private static final int SEMESTERS_PER_SESSION = 8;
+
     private final SessionRepository sessionRepository;
+    private final SemesterService semesterService;
 
     @Transactional(readOnly = true)
     public List<Session> findAll() {
@@ -34,10 +49,14 @@ public class SessionService {
             throw new IllegalArgumentException(
                     "Session " + request.startYear() + " - " + request.endYear() + " already exists");
         }
-        return sessionRepository.save(Session.builder()
+        Session session = sessionRepository.save(Session.builder()
                 .startYear(request.startYear())
                 .endYear(request.endYear())
                 .build());
+        for (int number = 1; number <= SEMESTERS_PER_SESSION; number++) {
+            semesterService.createForSession(session, number);
+        }
+        return session;
     }
 
     @Transactional

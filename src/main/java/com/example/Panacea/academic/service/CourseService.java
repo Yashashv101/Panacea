@@ -42,11 +42,18 @@ public class CourseService {
         return course;
     }
 
+    /**
+     * Deactivate-not-delete: Course rows are referenced by Section, Subject,
+     * User.hodCourse/staffCourse, StudentProfile and FeeStructure, so a hard
+     * delete would throw an FK violation the moment any department has real
+     * data attached (i.e. immediately, for any department actually in use).
+     * Same shape as User.enabled — active is a plain boolean flag, toggled
+     * either direction, not a one-way archive.
+     */
     @Transactional
-    public void delete(Long id) {
-        if (!courseRepository.existsById(id)) {
-            throw new EntityNotFoundException("Course " + id + " not found");
-        }
-        courseRepository.deleteById(id);
+    public Course setActive(Long id, boolean active) {
+        Course course = findById(id);
+        course.setActive(active);
+        return course;
     }
 }

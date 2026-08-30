@@ -5,13 +5,10 @@ import com.example.Panacea.fees.entity.FeePayment;
 import com.example.Panacea.fees.entity.FeeStructure;
 import com.example.Panacea.fees.entity.PaymentStatus;
 import com.example.Panacea.fees.repository.FeePaymentRepository;
-import com.example.Panacea.fees.repository.FeeStructureRepository;
 import com.example.Panacea.identity.entity.User;
 import com.example.Panacea.identity.repository.UserRepository;
 import com.example.Panacea.identity.security.HodScopeResolver;
 import com.example.Panacea.identity.security.UserPrincipal;
-import com.example.Panacea.student.entity.StudentProfile;
-import com.example.Panacea.student.service.StudentProfileService;
 import com.stripe.exception.StripeException;
 import com.stripe.model.checkout.Session;
 import com.stripe.param.checkout.SessionCreateParams;
@@ -29,9 +26,8 @@ import java.util.List;
 public class FeePaymentService {
 
     private final FeePaymentRepository feePaymentRepository;
-    private final FeeStructureRepository feeStructureRepository;
+    private final FeeStructureService feeStructureService;
     private final UserRepository userRepository;
-    private final StudentProfileService studentProfileService;
     private final HodScopeResolver hodScopeResolver;
 
     @Value("${panacea.stripe.currency}")
@@ -48,18 +44,22 @@ public class FeePaymentService {
      * initiated-on-a-student's-behalf path in this module — so course and
      * semester are resolved from the student's own StudentProfile rather than
      * taken from the request, same fix as ElectiveEnrollmentController#availableElectives.
+     *
+     * The amount charged is tuitionAmount + examFeeAmount, computed here from
+     * FeeStructure — never a client-supplied breakdown or total — and that single
+     * combined total is what goes into the one Stripe Checkout Session, same as
+     * before this was split into two components. FeePayment.amount stores only
+     * the combined total, not the breakdown, since Stripe/the webhook only ever
+     * need to know what was charged, not what it was itemized as.
      */
     @Transactional
     public FeePaymentResponse initiate(Long studentId) throws StripeException {
         User student = userRepository.findById(studentId)
                 .orElseThrow(() -> new EntityNotFoundException("User " + studentId + " not found"));
-        StudentProfile profile = studentProfileService.getByUserId(studentId);
-        FeeStructure feeStructure = feeStructureRepository
-                .findByCourseIdAndSemesterId(profile.getCourse().getId(), profile.getSemester().getId())
-                .orElseThrow(() -> new EntityNotFoundException("No fee structure for course "
-                        + profile.getCourse().getId() + " and semester " + profile.getSemester().getId()));
+        FeeStructure feeStructure = feeStructureService.resolveForStudent(studentId);
+        BigDecimal total = feeStructure.getTotalAmount();
 
-        Session session = createCheckoutSession(feeStructure);
+        Session session = createCheckoutSession(feeStructure, total);
 
         // idempotencyKey is the Stripe Checkout Session id — the webhook looks the
         // payment up by this key, never by a client-supplied value. stripePaymentIntentId
@@ -69,7 +69,7 @@ public class FeePaymentService {
                 .student(student)
                 .course(feeStructure.getCourse())
                 .semester(feeStructure.getSemester())
-                .amount(feeStructure.getAmount())
+                .amount(total)
                 .idempotencyKey(session.getId())
                 .stripePaymentIntentId(session.getPaymentIntent())
                 .build();
@@ -77,8 +77,8 @@ public class FeePaymentService {
         return FeePaymentResponse.from(feePaymentRepository.save(payment), session.getUrl());
     }
 
-    private Session createCheckoutSession(FeeStructure feeStructure) throws StripeException {
-        long unitAmount = feeStructure.getAmount().multiply(BigDecimal.valueOf(100)).longValueExact();
+    private Session createCheckoutSession(FeeStructure feeStructure, BigDecimal total) throws StripeException {
+        long unitAmount = total.multiply(BigDecimal.valueOf(100)).longValueExact();
 
         SessionCreateParams params = SessionCreateParams.builder()
                 .setMode(SessionCreateParams.Mode.PAYMENT)

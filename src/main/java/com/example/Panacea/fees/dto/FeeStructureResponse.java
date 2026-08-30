@@ -9,7 +9,9 @@ public record FeeStructureResponse(
         Long courseId,
         String courseName,
         Long semesterId,
-        BigDecimal amount
+        BigDecimal tuitionAmount,
+        BigDecimal examFeeAmount,
+        BigDecimal totalAmount
 ) {
     public static FeeStructureResponse from(FeeStructure feeStructure) {
         return new FeeStructureResponse(
@@ -17,6 +19,8 @@ public record FeeStructureResponse(
                 feeStructure.getCourse().getId(),
                 feeStructure.getCourse().getName(),
                 feeStructure.getSemester().getId(),
-                feeStructure.getAmount());
+                feeStructure.getTuitionAmount(),
+                feeStructure.getExamFeeAmount(),
+                feeStructure.getTotalAmount());
     }
 }

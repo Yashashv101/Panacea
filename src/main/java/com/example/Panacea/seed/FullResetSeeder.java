@@ -3,7 +3,6 @@ package com.example.Panacea.seed;
 import com.example.Panacea.academic.dto.CourseRequest;
 import com.example.Panacea.academic.dto.SectionRequest;
 import com.example.Panacea.academic.dto.SectionResponse;
-import com.example.Panacea.academic.dto.SemesterRequest;
 import com.example.Panacea.academic.dto.SubjectRequest;
 import com.example.Panacea.academic.entity.Course;
 import com.example.Panacea.academic.entity.Semester;
@@ -73,7 +72,8 @@ import java.util.Set;
 public class FullResetSeeder implements CommandLineRunner {
 
     private static final String SEEDED_PASSWORD = "ChangeMe@123";
-    private static final BigDecimal FEE_AMOUNT = new BigDecimal("50000.00");
+    private static final BigDecimal TUITION_FEE_AMOUNT = new BigDecimal("45000.00");
+    private static final BigDecimal EXAM_FEE_AMOUNT = new BigDecimal("5000.00");
     private static final int STAFF_COUNT = 5;
     private static final int STUDENTS_PER_SECTION = 10;
 
@@ -166,9 +166,11 @@ public class FullResetSeeder implements CommandLineRunner {
     }
 
     private Semester seedSemester(Session session) {
-        // Semester.number is unique across the whole table (not per-session), so
-        // only one semester is seeded here — a fresh cohort's first semester.
-        return semesterService.create(new SemesterRequest(1, "Semester 1", session.getId()));
+        // SessionService.create() (called by seedSession() above) already
+        // auto-creates the full Semester 1..8 set for this session, so this
+        // just looks up the one this seeder's cohort actually needs rather
+        // than creating it again (which would now conflict).
+        return semesterService.findBySessionAndNumber(session.getId(), 1);
     }
 
     private Map<String, Course> seedCourses() {
@@ -261,7 +263,7 @@ public class FullResetSeeder implements CommandLineRunner {
         for (CourseSpec spec : COURSE_SPECS) {
             Course course = coursesByCode.get(spec.code());
             structures.add(feeStructureService.create(
-                    new CreateFeeStructureRequest(course.getId(), semester.getId(), FEE_AMOUNT)));
+                    new CreateFeeStructureRequest(course.getId(), semester.getId(), TUITION_FEE_AMOUNT, EXAM_FEE_AMOUNT)));
         }
         return structures;
     }
@@ -275,7 +277,7 @@ public class FullResetSeeder implements CommandLineRunner {
     private int seedFeePayments(List<StudentSeed> students, List<FeeStructureResponse> feeStructures) {
         Map<Long, BigDecimal> amountByCourseId = new HashMap<>();
         for (FeeStructureResponse structure : feeStructures) {
-            amountByCourseId.put(structure.courseId(), structure.amount());
+            amountByCourseId.put(structure.courseId(), structure.totalAmount());
         }
 
         Semester semesterRef = entityManager.getReference(Semester.class,

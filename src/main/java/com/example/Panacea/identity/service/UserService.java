@@ -126,6 +126,37 @@ public class UserService {
                 .orElseThrow(() -> new EntityNotFoundException("Course " + courseId + " not found"));
     }
 
+    /**
+     * Dedicated lock/unlock action, ADMIN-only at the controller. Distinct from
+     * updateUser's own `enabled` field (which still works) because that endpoint
+     * requires the full profile payload — firstName/lastName/courseId — just to
+     * flip one flag; this is the single-purpose action the Users.jsx row toggle
+     * calls.
+     */
+    @Transactional
+    public User setEnabled(Long id, boolean enabled) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("User " + id + " not found"));
+        user.setEnabled(enabled);
+        return user;
+    }
+
+    /**
+     * Admin-initiated password reset: the admin supplies the new password
+     * directly (no random-temp-password-shown-once flow) since there is no
+     * email infrastructure in this project to deliver a temp password out of
+     * band anyway, and the admin already has a secure channel to the user by
+     * virtue of being the one who resets it. @Size(min = 8) on the DTO matches
+     * CreateUserRequest's own password rule.
+     */
+    @Transactional
+    public User resetPassword(Long id, String newPassword) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("User " + id + " not found"));
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        return user;
+    }
+
     @Transactional
     public User updateUser(Long id, UpdateUserRequest request) {
         User user = userRepository.findById(id)

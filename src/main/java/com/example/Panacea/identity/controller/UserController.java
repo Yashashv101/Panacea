@@ -5,6 +5,8 @@ import com.example.Panacea.identity.entity.User;
 import com.example.Panacea.identity.security.UserPrincipal;
 import com.example.Panacea.identity.service.UserService;
 import com.example.Panacea.identity.dto.CreateUserRequest;
+import com.example.Panacea.identity.dto.ResetPasswordRequest;
+import com.example.Panacea.identity.dto.SetEnabledRequest;
 import com.example.Panacea.identity.dto.UpdateUserRequest;
 import com.example.Panacea.identity.dto.UserResponse;
 import jakarta.validation.Valid;
@@ -14,6 +16,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -44,6 +47,20 @@ public class UserController {
     @PreAuthorize("hasRole('ADMIN')")
     public UserResponse updateUser(@PathVariable Long id, @Valid @RequestBody UpdateUserRequest request) {
         User user = userService.updateUser(id, request);
+        return UserResponse.from(user);
+    }
+
+    @PatchMapping("/{id}/enabled")
+    @PreAuthorize("hasRole('ADMIN')")
+    public UserResponse setEnabled(@PathVariable Long id, @Valid @RequestBody SetEnabledRequest request) {
+        User user = userService.setEnabled(id, request.enabled());
+        return UserResponse.from(user);
+    }
+
+    @PatchMapping("/{id}/password")
+    @PreAuthorize("hasRole('ADMIN')")
+    public UserResponse resetPassword(@PathVariable Long id, @Valid @RequestBody ResetPasswordRequest request) {
+        User user = userService.resetPassword(id, request.newPassword());
         return UserResponse.from(user);
     }
 

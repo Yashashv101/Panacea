@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import apiClient from "../../api/client";
 import StatusStamp from "../../components/StatusStamp";
+import FeeStructuresSection from "./FeeStructuresSection";
 
 const STATUS_FILTERS = ["PENDING", "PAID", "FAILED", "ALL"];
 
@@ -19,6 +20,7 @@ export default function FeesOverview() {
   const [payments, setPayments] = useState([]);
   const [courses, setCourses] = useState([]);
   const [semesters, setSemesters] = useState([]);
+  const [feeStructures, setFeeStructures] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
 
@@ -27,15 +29,17 @@ export default function FeesOverview() {
 
     async function load() {
       try {
-        const [paymentsRes, coursesRes, semestersRes] = await Promise.all([
+        const [paymentsRes, coursesRes, semestersRes, feeStructuresRes] = await Promise.all([
           apiClient.get("/fees/payments"),
           apiClient.get("/courses"),
           apiClient.get("/semesters"),
+          apiClient.get("/fees/structures"),
         ]);
         if (cancelled) return;
         setPayments(paymentsRes.data);
         setCourses(coursesRes.data);
         setSemesters(semestersRes.data);
+        setFeeStructures(feeStructuresRes.data);
       } catch {
         if (!cancelled) setLoadError("Could not load fee payments.");
       } finally {
@@ -93,6 +97,13 @@ export default function FeesOverview() {
         <p className="text-sm text-oxblood">{loadError}</p>
       ) : (
         <>
+          <FeeStructuresSection
+            feeStructures={feeStructures}
+            setFeeStructures={setFeeStructures}
+            courses={courses}
+            semesters={semesters}
+          />
+
           <div className="mb-6 flex items-center gap-8 border-b border-brass/20 pb-4">
             <div>
               <div className="text-xs font-medium uppercase tracking-wide text-slate">Collected</div>

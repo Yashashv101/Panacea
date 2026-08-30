@@ -13,6 +13,6 @@ export function extractErrorMessage(err, fallback) {
   if (status === 400 && err.response?.data?.errors) {
     return Object.values(err.response.data.errors)[0] ?? fallback;
   }
-  if (status === 409) return err.response.data?.message ?? fallback;
+  if (status === 409 || status === 404) return err.response.data?.message ?? fallback;
   return fallback;
 }

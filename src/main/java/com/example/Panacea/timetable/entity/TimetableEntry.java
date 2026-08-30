@@ -20,6 +20,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.time.DayOfWeek;
 
@@ -62,4 +63,24 @@ public class TimetableEntry {
 
     @Column(nullable = false)
     private Integer period;
+
+    /**
+     * Gates student visibility: generation creates entries as drafts
+     * (published=false) so an admin can review a batch (per-section
+     * breakdown, staff conflicts) before it's visible on any student
+     * dashboard — only an explicit "Save"/publish action flips this to true.
+     * Admin-facing reads (GET /api/timetable/section/{id}, the generation
+     * page's own review grid) are unaffected and always show every entry
+     * regardless of this flag; only the student-facing endpoint filters by
+     * it. @ColumnDefault("true") (not columnDefinition, same reasoning as
+     * Subject.type) backfills existing rows from before this column existed
+     * as already-published, so a feature this new never retroactively hides
+     * a timetable an admin already generated and considered final — new
+     * entries still get the Java-side default of false explicitly, since
+     * Hibernate always includes every mapped column in its INSERT.
+     */
+    @Column(nullable = false)
+    @ColumnDefault("true")
+    @Builder.Default
+    private boolean published = false;
 }

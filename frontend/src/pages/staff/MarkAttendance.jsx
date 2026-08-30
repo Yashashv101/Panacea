@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import apiClient from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import { inputClass, labelClass, primaryButtonClass, extractErrorMessage } from "../admin/academic/formStyles";
+import UpcomingCalendar from "../../components/UpcomingCalendar";
 
 const PERIODS = [1, 2, 3, 4, 5, 6];
 
@@ -163,6 +164,8 @@ export default function MarkAttendance() {
       <div className="mb-6 border-b border-brass/20 pb-4">
         <h1 className="font-display text-2xl font-semibold text-ink">Mark Attendance</h1>
       </div>
+
+      <UpcomingCalendar />
 
       {ownedSubjects.length === 0 ? (
         <p className="text-sm text-slate">

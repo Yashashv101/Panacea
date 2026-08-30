@@ -31,6 +31,7 @@ const HOD_NAV_ITEMS = [
 const ADMIN_NAV_ITEMS = [
   { to: "/admin/users", label: "Users" },
   { to: "/admin/academic-structure", label: "Academic Structure" },
+  { to: "/admin/calendar", label: "Academic Calendar" },
   { to: "/admin/timetable", label: "Generate Timetable" },
   { to: "/admin/leave", label: "Leave Requests" },
   { to: "/admin/fees", label: "Fees Overview" },

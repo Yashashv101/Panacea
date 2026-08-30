@@ -1,6 +1,7 @@
 import { useState } from "react";
 import apiClient from "../../../api/client";
 import { inputClass, labelClass, primaryButtonClass, rowActionClass, extractErrorMessage } from "./formStyles";
+import StatusStamp from "../../../components/StatusStamp";
 
 export default function CoursesSection({ courses, setCourses }) {
   const [name, setName] = useState("");
@@ -8,7 +9,7 @@ export default function CoursesSection({ courses, setCourses }) {
   const [message, setMessage] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState("");
-  const [confirmingDeleteId, setConfirmingDeleteId] = useState(null);
+  const [confirmingActiveId, setConfirmingActiveId] = useState(null);
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -29,7 +30,7 @@ export default function CoursesSection({ courses, setCourses }) {
   function startEdit(course) {
     setEditingId(course.id);
     setEditName(course.name);
-    setConfirmingDeleteId(null);
+    setConfirmingActiveId(null);
   }
 
   function cancelEdit() {
@@ -47,19 +48,18 @@ export default function CoursesSection({ courses, setCourses }) {
     }
   }
 
-  async function handleDelete(id) {
-    if (confirmingDeleteId !== id) {
-      setConfirmingDeleteId(id);
+  async function handleToggleActive(course) {
+    if (confirmingActiveId !== course.id) {
+      setConfirmingActiveId(course.id);
       return;
     }
     setMessage(null);
+    setConfirmingActiveId(null);
     try {
-      await apiClient.delete(`/courses/${id}`);
-      setCourses((prev) => prev.filter((c) => c.id !== id));
+      const { data } = await apiClient.patch(`/courses/${course.id}/active`, { active: !course.active });
+      setCourses((prev) => prev.map((c) => (c.id === data.id ? data : c)));
     } catch (err) {
-      setMessage({ tone: "error", text: extractErrorMessage(err, "Could not delete the course.") });
-    } finally {
-      setConfirmingDeleteId(null);
+      setMessage({ tone: "error", text: extractErrorMessage(err, "Could not update the course's active state.") });
     }
   }
 
@@ -106,13 +106,20 @@ export default function CoursesSection({ courses, setCourses }) {
                 </>
               ) : (
                 <>
-                  <span className="text-sm text-ink">{course.name}</span>
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm text-ink">{course.name}</span>
+                    <StatusStamp status={course.active ? "ACTIVE" : "INACTIVE"} />
+                  </div>
                   <div className="flex items-center gap-4">
                     <button type="button" onClick={() => startEdit(course)} className={rowActionClass}>
                       Edit
                     </button>
-                    <button type="button" onClick={() => handleDelete(course.id)} className={rowActionClass}>
-                      {confirmingDeleteId === course.id ? "Confirm delete?" : "Delete"}
+                    <button type="button" onClick={() => handleToggleActive(course)} className={rowActionClass}>
+                      {confirmingActiveId === course.id
+                        ? `Confirm ${course.active ? "deactivate" : "activate"}?`
+                        : course.active
+                        ? "Deactivate"
+                        : "Activate"}
                     </button>
                   </div>
                 </>

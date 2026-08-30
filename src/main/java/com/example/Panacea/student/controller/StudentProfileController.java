@@ -5,6 +5,8 @@ import com.example.Panacea.identity.dto.UserResponse;
 import com.example.Panacea.identity.security.UserPrincipal;
 import com.example.Panacea.student.dto.StudentLookupResponse;
 import com.example.Panacea.student.service.StudentProfileService;
+import com.example.Panacea.timetable.dto.TimetableEntryResponse;
+import com.example.Panacea.timetable.service.TimetableService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -23,6 +25,7 @@ import java.util.List;
 public class StudentProfileController {
 
     private final StudentProfileService studentProfileService;
+    private final TimetableService timetableService;
 
     /**
      * The real, section-filtered roster — replaces "GET /api/users?role=STUDENT"
@@ -68,5 +71,17 @@ public class StudentProfileController {
     @PreAuthorize("hasRole('STUDENT')")
     public SubjectResponse mySubject(@PathVariable Long subjectId, @AuthenticationPrincipal UserPrincipal principal) {
         return studentProfileService.getAccessibleSubject(principal.getId(), subjectId);
+    }
+
+    /**
+     * The student dashboard's timetable view — only entries an admin has
+     * explicitly published (see TimetableService#publishForCourse) for this
+     * student's own section, resolved server-side, never a caller-supplied
+     * sectionId.
+     */
+    @GetMapping("/me/timetable")
+    @PreAuthorize("hasRole('STUDENT')")
+    public List<TimetableEntryResponse> myTimetable(@AuthenticationPrincipal UserPrincipal principal) {
+        return timetableService.findMyTimetable(principal.getId());
     }
 }

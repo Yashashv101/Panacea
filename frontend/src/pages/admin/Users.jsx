@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import apiClient from "../../api/client";
-import { inputClass, labelClass, extractErrorMessage } from "./academic/formStyles";
+import { inputClass, labelClass, rowActionClass, extractErrorMessage } from "./academic/formStyles";
+import StatusStamp from "../../components/StatusStamp";
 
 const ROLES = ["ADMIN", "HOD", "STAFF", "STUDENT"];
 
@@ -23,11 +24,16 @@ export default function Users() {
   const [semesters, setSemesters] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState(null);
+  const [listMessage, setListMessage] = useState(null);
+  const [confirmingLockId, setConfirmingLockId] = useState(null);
+  const [resetPasswordId, setResetPasswordId] = useState(null);
+  const [newPassword, setNewPassword] = useState("");
 
   useEffect(() => {
     apiClient.get("/courses").then(({ data }) => setCourses(data));
     apiClient.get("/sections").then(({ data }) => setSections(data));
     apiClient.get("/semesters").then(({ data }) => setSemesters(data));
+    apiClient.get("/users").then(({ data }) => setUsers(data));
   }, []);
 
   const sectionsForSelectedCourse = sections.filter(
@@ -65,6 +71,45 @@ export default function Users() {
       setMessage({ tone: "error", text: extractErrorMessage(err, "Something went wrong creating the user.") });
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleToggleEnabled(targetUser) {
+    if (confirmingLockId !== targetUser.id) {
+      setConfirmingLockId(targetUser.id);
+      return;
+    }
+    setListMessage(null);
+    setConfirmingLockId(null);
+    try {
+      const { data } = await apiClient.patch(`/users/${targetUser.id}/enabled`, {
+        enabled: !targetUser.enabled,
+      });
+      setUsers((prev) => prev.map((u) => (u.id === data.id ? data : u)));
+    } catch (err) {
+      setListMessage({ tone: "error", text: extractErrorMessage(err, "Could not update the account's lock state.") });
+    }
+  }
+
+  function startResetPassword(targetUser) {
+    setResetPasswordId(targetUser.id);
+    setNewPassword("");
+    setConfirmingLockId(null);
+  }
+
+  function cancelResetPassword() {
+    setResetPasswordId(null);
+    setNewPassword("");
+  }
+
+  async function handleResetPassword(targetUserId) {
+    setListMessage(null);
+    try {
+      await apiClient.patch(`/users/${targetUserId}/password`, { newPassword });
+      setListMessage({ tone: "success", text: "Password reset." });
+      cancelResetPassword();
+    } catch (err) {
+      setListMessage({ tone: "error", text: extractErrorMessage(err, "Could not reset the password.") });
     }
   }
 
@@ -156,7 +201,7 @@ export default function Users() {
                 <option value="" disabled>
                   Select a course
                 </option>
-                {courses.map((course) => (
+                {courses.filter((course) => course.active).map((course) => (
                   <option key={course.id} value={course.id}>
                     {course.name}
                   </option>
@@ -225,27 +270,70 @@ export default function Users() {
       </section>
 
       <section>
-        <h2 className="mb-1 font-display text-lg font-semibold text-ink">Users</h2>
-        <p className="mb-4 text-xs text-slate">
-          Showing users created this session — no listing endpoint is available yet to load existing users.
-        </p>
+        <h2 className="mb-4 font-display text-lg font-semibold text-ink">Users</h2>
+
+        {listMessage && (
+          <p className={`mb-4 text-sm ${listMessage.tone === "success" ? "text-slate" : "text-oxblood"}`}>
+            {listMessage.text}
+          </p>
+        )}
 
         {users.length === 0 ? (
           <p className="border-b border-brass/20 py-4 text-sm text-slate">No users yet.</p>
         ) : (
           <div className="flex flex-col">
             {users.map((user) => (
-              <div
-                key={user.id}
-                className="flex items-center justify-between border-b border-brass/20 py-3"
-              >
-                <div className="flex items-center gap-4">
-                  <span className="text-sm text-ink">
-                    {user.firstName} {user.lastName}
-                  </span>
-                  <span className="font-mono text-sm text-slate">{user.email}</span>
+              <div key={user.id} className="border-b border-brass/20 py-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm text-ink">
+                      {user.firstName} {user.lastName}
+                    </span>
+                    <span className="font-mono text-sm text-slate">{user.email}</span>
+                    <span className="text-sm text-slate">{user.role}</span>
+                    <StatusStamp status={user.enabled ? "ACTIVE" : "LOCKED"} />
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <button type="button" onClick={() => startResetPassword(user)} className={rowActionClass}>
+                      Reset password
+                    </button>
+                    <button type="button" onClick={() => handleToggleEnabled(user)} className={rowActionClass}>
+                      {confirmingLockId === user.id
+                        ? `Confirm ${user.enabled ? "lock" : "unlock"}?`
+                        : user.enabled
+                        ? "Lock account"
+                        : "Unlock account"}
+                    </button>
+                  </div>
                 </div>
-                <span className="text-sm text-slate">{user.role}</span>
+
+                {resetPasswordId === user.id && (
+                  <div className="mt-3 flex items-end gap-4">
+                    <label className="flex flex-1 max-w-xs flex-col gap-1.5">
+                      <span className={labelClass}>New password for {user.email}</span>
+                      <input
+                        type="password"
+                        required
+                        minLength={8}
+                        autoComplete="new-password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className={inputClass}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => handleResetPassword(user.id)}
+                      disabled={newPassword.length < 8}
+                      className={rowActionClass}
+                    >
+                      Save
+                    </button>
+                    <button type="button" onClick={cancelResetPassword} className={rowActionClass}>
+                      Cancel
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>

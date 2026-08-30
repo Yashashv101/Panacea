@@ -11,7 +11,9 @@ public record UserResponse(
         Role role,
         boolean enabled,
         Long hodCourseId,
-        String hodCourseName
+        String hodCourseName,
+        Long staffCourseId,
+        String staffCourseName
 ) {
     public static UserResponse from(User user) {
         return new UserResponse(
@@ -22,6 +24,8 @@ public record UserResponse(
                 user.getRole(),
                 user.isEnabled(),
                 user.getHodCourse() != null ? user.getHodCourse().getId() : null,
-                user.getHodCourse() != null ? user.getHodCourse().getName() : null);
+                user.getHodCourse() != null ? user.getHodCourse().getName() : null,
+                user.getStaffCourse() != null ? user.getStaffCourse().getId() : null,
+                user.getStaffCourse() != null ? user.getStaffCourse().getName() : null);
     }
 }

@@ -72,6 +72,20 @@ public class User {
     @JoinColumn(name = "hod_course_id", unique = true)
     private Course hodCourse;
 
+    /**
+     * Set only when role = STAFF — the department (Course) this staff member
+     * belongs to. Distinct from hodCourse above: hodCourse is the department an
+     * HOD heads (one HOD per Course, enforced by that column's unique
+     * constraint); staffCourse is just department membership, so many STAFF
+     * rows may point at the same Course — no unique constraint here.
+     *
+     * EAGER for the same reason as hodCourse: UserResponse.from() reads
+     * staffCourse.getName() outside the service's @Transactional method.
+     */
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "staff_course_id")
+    private Course staffCourse;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

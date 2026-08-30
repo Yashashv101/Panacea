@@ -53,7 +53,14 @@ public class Subject {
     @Builder.Default
     private SubjectType type = SubjectType.CORE;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    // EAGER (not LAZY) for the same reason as User.hodCourse: SubjectResponse.from()
+    // reads primaryStaff.getFirstName()/getLastName(), and while every current call
+    // site happens to map inside a @Transactional method, EAGER removes the
+    // dependency on that always being true going forward. A single ManyToOne join
+    // is cheap; confirmed no query here relies on LAZY to skip the join
+    // (SubjectRepository has no @EntityGraph/fetch-avoidance, and no test asserts
+    // proxy/uninitialized state on this field).
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "primary_staff_id")
     private User primaryStaff;
 

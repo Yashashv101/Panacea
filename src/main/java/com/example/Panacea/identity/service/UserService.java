@@ -49,6 +49,10 @@ public class UserService {
             user.setHodCourse(resolveHodCourse(request.courseId()));
         }
 
+        if (user.getRole() == Role.STAFF) {
+            user.setStaffCourse(resolveStaffCourse(request.courseId()));
+        }
+
         User saved = userRepository.save(user);
 
         if (saved.getRole() == Role.STUDENT) {
@@ -77,6 +81,19 @@ public class UserService {
         return course;
     }
 
+    /**
+     * Required-when-STAFF, same cross-field pattern as resolveHodCourse above —
+     * except there's no existsBy*-style uniqueness check, since a department can
+     * have any number of staff.
+     */
+    private Course resolveStaffCourse(Long courseId) {
+        if (courseId == null) {
+            throw new IllegalArgumentException("course is required for a STAFF user");
+        }
+        return courseRepository.findById(courseId)
+                .orElseThrow(() -> new EntityNotFoundException("Course " + courseId + " not found"));
+    }
+
     @Transactional
     public User updateUser(Long id, UpdateUserRequest request) {
         User user = userRepository.findById(id)
@@ -85,6 +102,11 @@ public class UserService {
         user.setFirstName(request.firstName());
         user.setLastName(request.lastName());
         user.setEnabled(request.enabled());
+
+        if (user.getRole() == Role.STAFF) {
+            user.setStaffCourse(resolveStaffCourse(request.courseId()));
+        }
+
         User saved = userRepository.save(user);
 
         if (saved.getRole() == Role.STUDENT) {

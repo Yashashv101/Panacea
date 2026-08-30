@@ -4,21 +4,44 @@ import { inputClass, labelClass, extractErrorMessage } from "./academic/formStyl
 
 const ROLES = ["ADMIN", "HOD", "STAFF", "STUDENT"];
 
-const EMPTY_FORM = { email: "", firstName: "", lastName: "", password: "", role: "STUDENT", courseId: "" };
+const EMPTY_FORM = {
+  email: "",
+  firstName: "",
+  lastName: "",
+  password: "",
+  role: "STUDENT",
+  courseId: "",
+  sectionId: "",
+  semesterId: "",
+};
 
 export default function Users() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [users, setUsers] = useState([]);
   const [courses, setCourses] = useState([]);
+  const [sections, setSections] = useState([]);
+  const [semesters, setSemesters] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState(null);
 
   useEffect(() => {
     apiClient.get("/courses").then(({ data }) => setCourses(data));
+    apiClient.get("/sections").then(({ data }) => setSections(data));
+    apiClient.get("/semesters").then(({ data }) => setSemesters(data));
   }, []);
+
+  const sectionsForSelectedCourse = sections.filter(
+    (section) => String(section.courseId) === String(form.courseId)
+  );
 
   function updateField(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  function updateCourse(value) {
+    // Changing course invalidates any previously chosen section (sections are
+    // scoped to a course), same as SectionsSection.jsx's course/section coupling.
+    setForm((prev) => ({ ...prev, courseId: value, sectionId: "" }));
   }
 
   async function handleSubmit(e) {
@@ -26,7 +49,14 @@ export default function Users() {
     setMessage(null);
     setSubmitting(true);
     try {
-      const payload = { ...form, courseId: form.role === "HOD" ? Number(form.courseId) : null };
+      const needsCourse = form.role === "HOD" || form.role === "STUDENT" || form.role === "STAFF";
+      const needsSectionAndSemester = form.role === "STUDENT";
+      const payload = {
+        ...form,
+        courseId: needsCourse ? Number(form.courseId) : null,
+        sectionId: needsSectionAndSemester ? Number(form.sectionId) : null,
+        semesterId: needsSectionAndSemester ? Number(form.semesterId) : null,
+      };
       const { data } = await apiClient.post("/users", payload);
       setUsers((prev) => [data, ...prev]);
       setForm(EMPTY_FORM);
@@ -112,13 +142,15 @@ export default function Users() {
             </select>
           </label>
 
-          {form.role === "HOD" && (
+          {(form.role === "HOD" || form.role === "STUDENT" || form.role === "STAFF") && (
             <label className="flex flex-col gap-1.5">
-              <span className={labelClass}>Course (department)</span>
+              <span className={labelClass}>
+                {form.role === "HOD" || form.role === "STAFF" ? "Course (department)" : "Course"}
+              </span>
               <select
                 required
                 value={form.courseId}
-                onChange={(e) => updateField("courseId", e.target.value)}
+                onChange={(e) => updateCourse(e.target.value)}
                 className={inputClass}
               >
                 <option value="" disabled>
@@ -131,6 +163,49 @@ export default function Users() {
                 ))}
               </select>
             </label>
+          )}
+
+          {form.role === "STUDENT" && (
+            <div className="grid grid-cols-2 gap-5">
+              <label className="flex flex-col gap-1.5">
+                <span className={labelClass}>Section</span>
+                <select
+                  required
+                  disabled={!form.courseId}
+                  value={form.sectionId}
+                  onChange={(e) => updateField("sectionId", e.target.value)}
+                  className={inputClass}
+                >
+                  <option value="" disabled>
+                    {form.courseId ? "Select a section" : "Select a course first"}
+                  </option>
+                  {sectionsForSelectedCourse.map((section) => (
+                    <option key={section.id} value={section.id}>
+                      {section.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="flex flex-col gap-1.5">
+                <span className={labelClass}>Semester</span>
+                <select
+                  required
+                  value={form.semesterId}
+                  onChange={(e) => updateField("semesterId", e.target.value)}
+                  className={inputClass}
+                >
+                  <option value="" disabled>
+                    Select a semester
+                  </option>
+                  {semesters.map((semester) => (
+                    <option key={semester.id} value={semester.id}>
+                      {semester.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
           )}
 
           {message && (

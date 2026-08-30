@@ -1,14 +1,18 @@
 package com.example.Panacea.leave.service;
 
 import com.example.Panacea.audit.service.AuditLogService;
+import com.example.Panacea.identity.entity.Role;
 import com.example.Panacea.identity.entity.User;
 import com.example.Panacea.identity.repository.UserRepository;
+import com.example.Panacea.identity.security.HodScopeResolver;
+import com.example.Panacea.identity.security.UserPrincipal;
 import com.example.Panacea.leave.dto.LeaveRequestResponse;
 import com.example.Panacea.leave.dto.SubmitLeaveRequest;
 import com.example.Panacea.leave.entity.LeaveRequest;
 import com.example.Panacea.leave.entity.LeaveStatus;
 import com.example.Panacea.leave.repository.LeaveRequestRepository;
 import com.example.Panacea.notifications.service.NotificationEventPublisher;
+import com.example.Panacea.student.service.StudentProfileService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -24,6 +28,8 @@ public class LeaveService {
     private final LeaveRequestRepository leaveRequestRepository;
     private final NotificationEventPublisher notificationEventPublisher;
     private final AuditLogService auditLogService;
+    private final HodScopeResolver hodScopeResolver;
+    private final StudentProfileService studentProfileService;
 
     @Transactional
     public LeaveRequestResponse submit(SubmitLeaveRequest request, Long requesterId) {
@@ -48,12 +54,33 @@ public class LeaveService {
                 .toList();
     }
 
+    /**
+     * ADMIN sees every request, unfiltered. An HOD is scoped to their own
+     * department: the requester's course, resolved by role (STUDENT via
+     * StudentProfile.course, STAFF via staffCourse directly — submit() only
+     * ever allows those two roles as requester, see SubmitLeaveRequest's
+     * @PreAuthorize), must match the HOD's hodCourse.
+     */
     @Transactional(readOnly = true)
-    public List<LeaveRequestResponse> findAll(LeaveStatus status) {
+    public List<LeaveRequestResponse> findAll(LeaveStatus status, UserPrincipal principal) {
         List<LeaveRequest> requests = status != null
                 ? leaveRequestRepository.findByStatusOrderByStartDateDesc(status)
                 : leaveRequestRepository.findAllByOrderByStartDateDesc();
+
+        requests = hodScopeResolver.filterByHodScope(principal, requests,
+                r -> resolveCourseIdForRequester(r.getRequester()));
+
         return requests.stream().map(LeaveRequestResponse::from).toList();
+    }
+
+    private Long resolveCourseIdForRequester(User requester) {
+        if (requester.getRole() == Role.STUDENT) {
+            return studentProfileService.findCourseIdForUser(requester.getId());
+        }
+        if (requester.getRole() == Role.STAFF) {
+            return requester.getStaffCourse() != null ? requester.getStaffCourse().getId() : null;
+        }
+        return null;
     }
 
     @Transactional

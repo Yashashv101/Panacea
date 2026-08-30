@@ -9,6 +9,7 @@ import com.example.Panacea.academic.repository.SubjectRepository;
 import com.example.Panacea.audit.service.AuditLogService;
 import com.example.Panacea.identity.entity.User;
 import com.example.Panacea.identity.repository.UserRepository;
+import com.example.Panacea.identity.security.HodScopeResolver;
 import com.example.Panacea.timetable.dto.GenerateTimetableRequest;
 import com.example.Panacea.timetable.dto.TimetableEntryResponse;
 import com.example.Panacea.timetable.dto.TimetableGenerationResponse;
@@ -56,6 +57,7 @@ public class TimetableService {
     private final TimetableEntryRepository timetableEntryRepository;
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
+    private final HodScopeResolver hodScopeResolver;
 
     @Transactional(readOnly = true)
     public List<TimetableEntryResponse> findBySection(Long sectionId) {
@@ -77,6 +79,7 @@ public class TimetableService {
                 .orElseThrow(() -> new EntityNotFoundException("Semester " + request.semesterId() + " not found"));
         Section section = sectionRepository.findById(request.sectionId())
                 .orElseThrow(() -> new EntityNotFoundException("Section " + request.sectionId() + " not found"));
+        requireHodScopeAllowsSection(section, actor);
 
         List<Subject> subjects = subjectRepository
                 .findBySemesterIdAndSectionsId(semester.getId(), section.getId())
@@ -149,6 +152,24 @@ public class TimetableService {
                 "Generated " + created + " entries (" + skipped + " skipped) for semester " + semester.getId());
 
         return new TimetableGenerationResponse(created, skipped, errors);
+    }
+
+    /**
+     * A single-section action, so a wrong-department HOD is rejected outright
+     * (403) via HodScopeResolver#requireCourseAccess, same treatment as
+     * AttendanceService/ResultService's single-student guards. Section.course
+     * is the direct path — no need to hop through a subject or profile the
+     * way the list-filtering endpoints do.
+     *
+     * The resolveScopeCourse short-circuit avoids forcing Section.course's
+     * lazy fetch for ADMIN, same reasoning as the StudentProfile
+     * short-circuit in AttendanceService/ResultService's guards.
+     */
+    private void requireHodScopeAllowsSection(Section section, User actor) {
+        if (hodScopeResolver.resolveScopeCourse(actor) == null) {
+            return;
+        }
+        hodScopeResolver.requireCourseAccess(actor, section.getCourse() != null ? section.getCourse().getId() : null);
     }
 
     private static List<Integer> shuffledPeriods() {

@@ -2,9 +2,10 @@ package com.example.Panacea.mcq.service;
 
 import com.example.Panacea.academic.entity.Subject;
 import com.example.Panacea.academic.repository.SubjectRepository;
-import com.example.Panacea.identity.entity.Role;
+import com.example.Panacea.academic.security.SubjectOwnershipGuard;
 import com.example.Panacea.identity.entity.User;
 import com.example.Panacea.identity.repository.UserRepository;
+import com.example.Panacea.identity.security.HodScopeResolver;
 import com.example.Panacea.mcq.dto.CreateQuizRequest;
 import com.example.Panacea.mcq.dto.QuizAttemptResponse;
 import com.example.Panacea.mcq.dto.QuizResponse;
@@ -16,7 +17,6 @@ import com.example.Panacea.mcq.repository.QuizAttemptRepository;
 import com.example.Panacea.mcq.repository.QuizRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +32,8 @@ public class QuizService {
     private final SubjectRepository subjectRepository;
     private final UserRepository userRepository;
     private final QuizAttemptRepository quizAttemptRepository;
+    private final HodScopeResolver hodScopeResolver;
+    private final SubjectOwnershipGuard subjectOwnershipGuard;
 
     @Transactional
     public QuizResponse createQuiz(CreateQuizRequest request, Long staffId) {
@@ -40,7 +42,7 @@ public class QuizService {
         User staff = userRepository.findById(staffId)
                 .orElseThrow(() -> new EntityNotFoundException("User " + staffId + " not found"));
 
-        requireSubjectOwnership(staff, subject);
+        subjectOwnershipGuard.requireOwnership(staff, subject);
 
         Quiz quiz = Quiz.builder()
                 .title(request.title())
@@ -135,15 +137,26 @@ public class QuizService {
         User actor = userRepository.findById(actorId)
                 .orElseThrow(() -> new EntityNotFoundException("User " + actorId + " not found"));
 
-        requireSubjectOwnership(actor, quiz.getSubject());
+        subjectOwnershipGuard.requireOwnership(actor, quiz.getSubject());
+        requireHodScopeAllowsSubject(actor, quiz.getSubject());
 
         return quizAttemptRepository.findByQuizId(quizId).stream().map(QuizAttemptResponse::from).toList();
     }
 
-    private static void requireSubjectOwnership(User actor, Subject subject) {
-        if (actor.getRole() == Role.STAFF
-                && (subject.getPrimaryStaff() == null || !subject.getPrimaryStaff().getId().equals(actor.getId()))) {
-            throw new AccessDeniedException("You are not the primary staff for this subject");
-        }
+    /**
+     * A single quiz's attempt roster, so a wrong-department HOD is rejected
+     * outright (403) via HodScopeResolver#requireCourseAccess — the same
+     * reject-not-filter treatment SubjectOwnershipGuard above already applies
+     * to a STAFF member who isn't this subject's primaryStaff. Scoped via the
+     * subject's primaryStaff.staffCourse: no Subject.courses membership
+     * check, since a Subject's ManyToMany courses set doesn't identify a
+     * single owning department the way primaryStaff (a single STAFF user
+     * with one staffCourse) does.
+     */
+    private void requireHodScopeAllowsSubject(User actor, Subject subject) {
+        User primaryStaff = subject.getPrimaryStaff();
+        Long staffCourseId = primaryStaff != null && primaryStaff.getStaffCourse() != null
+                ? primaryStaff.getStaffCourse().getId() : null;
+        hodScopeResolver.requireCourseAccess(actor, staffCourseId);
     }
 }

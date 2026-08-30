@@ -114,6 +114,17 @@ public class StudentProfileService {
      * DTO-mapping rule — the same reasoning findStudentsInSection already
      * relies on.
      */
+    /**
+     * The nullable counterpart to getByUserId — used by HOD department-scoping
+     * checks (LeaveService, FeedbackService) that need "does this STUDENT belong
+     * to my course, or null if they have no profile yet" without treating a
+     * missing profile as an error the way getByUserId does.
+     */
+    @Transactional(readOnly = true)
+    public Long findCourseIdForUser(Long userId) {
+        return studentProfileRepository.findByUserId(userId).map(p -> p.getCourse().getId()).orElse(null);
+    }
+
     @Transactional(readOnly = true)
     public List<User> findUsersInCourse(Long courseId) {
         return studentProfileRepository.findByCourseId(courseId).stream()

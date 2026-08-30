@@ -4,10 +4,11 @@ import com.example.Panacea.academic.entity.Semester;
 import com.example.Panacea.academic.entity.Subject;
 import com.example.Panacea.academic.repository.SemesterRepository;
 import com.example.Panacea.academic.repository.SubjectRepository;
+import com.example.Panacea.academic.security.SubjectOwnershipGuard;
 import com.example.Panacea.audit.service.AuditLogService;
-import com.example.Panacea.identity.entity.Role;
 import com.example.Panacea.identity.entity.User;
 import com.example.Panacea.identity.repository.UserRepository;
+import com.example.Panacea.identity.security.HodScopeResolver;
 import com.example.Panacea.mcq.entity.QuizAttempt;
 import com.example.Panacea.mcq.repository.QuizAttemptRepository;
 import com.example.Panacea.notifications.service.NotificationEventPublisher;
@@ -15,9 +16,10 @@ import com.example.Panacea.results.dto.StudentResultResponse;
 import com.example.Panacea.results.dto.UpsertResultRequest;
 import com.example.Panacea.results.entity.StudentResult;
 import com.example.Panacea.results.repository.StudentResultRepository;
+import com.example.Panacea.student.entity.StudentProfile;
+import com.example.Panacea.student.service.StudentProfileService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +37,9 @@ public class ResultService {
     private final QuizAttemptRepository quizAttemptRepository;
     private final NotificationEventPublisher notificationEventPublisher;
     private final AuditLogService auditLogService;
+    private final HodScopeResolver hodScopeResolver;
+    private final StudentProfileService studentProfileService;
+    private final SubjectOwnershipGuard subjectOwnershipGuard;
 
     @Transactional
     public StudentResultResponse upsertResult(UpsertResultRequest request, Long actorId) {
@@ -47,7 +52,7 @@ public class ResultService {
         Semester semester = semesterRepository.findById(request.semesterId())
                 .orElseThrow(() -> new EntityNotFoundException("Semester " + request.semesterId() + " not found"));
 
-        requireSubjectOwnership(actor, subject);
+        subjectOwnershipGuard.requireOwnership(actor, subject);
 
         StudentResult result = studentResultRepository
                 .findByStudentIdAndSubjectIdAndSemesterId(request.studentId(), request.subjectId(), request.semesterId())
@@ -87,10 +92,26 @@ public class ResultService {
         Subject subject = subjectRepository.findById(subjectId)
                 .orElseThrow(() -> new EntityNotFoundException("Subject " + subjectId + " not found"));
 
-        requireSubjectOwnership(actor, subject);
+        subjectOwnershipGuard.requireOwnership(actor, subject);
+        requireHodScopeAllowsStudent(studentId, actor);
 
         return studentResultRepository.findByStudentIdAndSubjectIdAndSemesterId(studentId, subjectId, semesterId)
                 .map(this::toResponse);
+    }
+
+    /**
+     * A single-student lookup, so a wrong-department HOD is rejected outright
+     * (403) via HodScopeResolver#requireCourseAccess, same treatment as
+     * AttendanceService#requireHodScopeAllowsStudent. The resolveScopeCourse
+     * short-circuit before the StudentProfile lookup mirrors that method too
+     * — see its comment for why it's deliberate, not redundant.
+     */
+    private void requireHodScopeAllowsStudent(Long studentId, User actor) {
+        if (hodScopeResolver.resolveScopeCourse(actor) == null) {
+            return;
+        }
+        StudentProfile profile = studentProfileService.getByUserId(studentId);
+        hodScopeResolver.requireCourseAccess(actor, profile.getCourse().getId());
     }
 
     private StudentResultResponse toResponse(StudentResult result) {
@@ -110,12 +131,5 @@ public class ResultService {
 
     private double quizMaxScore(QuizAttempt attempt) {
         return attempt.getQuiz().isRescaleToTen() ? 10.0 : attempt.getTotalPossibleMarks().doubleValue();
-    }
-
-    private static void requireSubjectOwnership(User actor, Subject subject) {
-        if (actor.getRole() == Role.STAFF
-                && (subject.getPrimaryStaff() == null || !subject.getPrimaryStaff().getId().equals(actor.getId()))) {
-            throw new AccessDeniedException("You are not the primary staff for this subject");
-        }
     }
 }

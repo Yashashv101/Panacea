@@ -38,7 +38,7 @@ public class FeePaymentController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'HOD')")
-    public List<FeePaymentResponse> allPayments() {
-        return feePaymentService.findAll();
+    public List<FeePaymentResponse> allPayments(@AuthenticationPrincipal UserPrincipal principal) {
+        return feePaymentService.findAll(principal);
     }
 }

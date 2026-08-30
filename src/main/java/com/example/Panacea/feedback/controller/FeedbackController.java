@@ -42,8 +42,9 @@ public class FeedbackController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'HOD')")
-    public List<FeedbackResponse> findAll(@RequestParam(required = false) FeedbackStatus status) {
-        return feedbackService.findAll(status);
+    public List<FeedbackResponse> findAll(@RequestParam(required = false) FeedbackStatus status,
+                                           @AuthenticationPrincipal UserPrincipal principal) {
+        return feedbackService.findAll(status, principal);
     }
 
     @PostMapping("/{id}/reply")

@@ -52,8 +52,8 @@ public class ProctorAssignmentController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'HOD')")
-    public List<ProctorAssignmentResponse> findAll() {
-        return proctorAssignmentService.findAll();
+    public List<ProctorAssignmentResponse> findAll(@AuthenticationPrincipal UserPrincipal principal) {
+        return proctorAssignmentService.findAll(principal);
     }
 
     /**

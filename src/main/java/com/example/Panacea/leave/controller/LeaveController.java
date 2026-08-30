@@ -41,8 +41,9 @@ public class LeaveController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'HOD')")
-    public List<LeaveRequestResponse> findAll(@RequestParam(required = false) LeaveStatus status) {
-        return leaveService.findAll(status);
+    public List<LeaveRequestResponse> findAll(@RequestParam(required = false) LeaveStatus status,
+                                               @AuthenticationPrincipal UserPrincipal principal) {
+        return leaveService.findAll(status, principal);
     }
 
     @PostMapping("/{id}/approve")

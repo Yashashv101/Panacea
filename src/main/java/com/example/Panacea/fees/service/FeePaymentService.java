@@ -8,6 +8,8 @@ import com.example.Panacea.fees.repository.FeePaymentRepository;
 import com.example.Panacea.fees.repository.FeeStructureRepository;
 import com.example.Panacea.identity.entity.User;
 import com.example.Panacea.identity.repository.UserRepository;
+import com.example.Panacea.identity.security.HodScopeResolver;
+import com.example.Panacea.identity.security.UserPrincipal;
 import com.example.Panacea.student.entity.StudentProfile;
 import com.example.Panacea.student.service.StudentProfileService;
 import com.stripe.exception.StripeException;
@@ -30,6 +32,7 @@ public class FeePaymentService {
     private final FeeStructureRepository feeStructureRepository;
     private final UserRepository userRepository;
     private final StudentProfileService studentProfileService;
+    private final HodScopeResolver hodScopeResolver;
 
     @Value("${panacea.stripe.currency}")
     private String currency;
@@ -157,8 +160,21 @@ public class FeePaymentService {
                 .toList();
     }
 
+    /**
+     * ADMIN sees every payment, unfiltered. An HOD is scoped to their own
+     * department via FeePayment.course directly — not a StudentProfile
+     * lookup: this entity already stores its own course (copied from the
+     * FeeStructure at initiate() time above), which is simpler and cheaper
+     * than re-deriving it through the paying student's profile, and can't
+     * drift from what the payment was actually for even if the student's
+     * profile course changes later.
+     */
     @Transactional(readOnly = true)
-    public List<FeePaymentResponse> findAll() {
-        return feePaymentRepository.findAll().stream().map(FeePaymentResponse::from).toList();
+    public List<FeePaymentResponse> findAll(UserPrincipal principal) {
+        List<FeePayment> payments = feePaymentRepository.findAll();
+
+        payments = hodScopeResolver.filterByHodScope(principal, payments, p -> p.getCourse().getId());
+
+        return payments.stream().map(FeePaymentResponse::from).toList();
     }
 }

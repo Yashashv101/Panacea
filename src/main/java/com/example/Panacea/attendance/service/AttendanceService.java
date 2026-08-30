@@ -16,7 +16,10 @@ import com.example.Panacea.audit.service.AuditLogService;
 import com.example.Panacea.identity.entity.User;
 import com.example.Panacea.identity.repository.UserRepository;
 import com.example.Panacea.identity.entity.Role;
+import com.example.Panacea.identity.security.HodScopeResolver;
+import com.example.Panacea.identity.security.UserPrincipal;
 import com.example.Panacea.notifications.service.NotificationEventPublisher;
+import com.example.Panacea.student.entity.StudentProfile;
 import com.example.Panacea.student.service.StudentProfileService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +50,7 @@ public class AttendanceService {
     private final AuditLogService auditLogService;
     private final CacheManager cacheManager;
     private final StudentProfileService studentProfileService;
+    private final HodScopeResolver hodScopeResolver;
 
     static final String PERCENTAGE_CACHE = "attendancePercentage";
 
@@ -100,6 +104,31 @@ public class AttendanceService {
         });
 
         return AttendanceResponse.from(attendance, reports.size());
+    }
+
+    /**
+     * The oversight-lookup guard for GET /percentage/student/{studentId} — a
+     * single-student lookup, so a wrong-department HOD is rejected outright
+     * (403) via HodScopeResolver#requireCourseAccess rather than silently
+     * filtered like the list endpoints. Called as a separate top-level call
+     * from the controller (not from inside computePercentage itself) so the
+     * @Cacheable proxy on computePercentage below still applies — a
+     * self-invocation from within this class would bypass Spring's AOP proxy
+     * and silently break caching.
+     *
+     * The resolveScopeCourse short-circuit before the StudentProfile lookup
+     * is deliberate, not redundant with requireCourseAccess's own check: it
+     * lets ADMIN/STAFF query any studentId — including one with no
+     * StudentProfile row yet — without ever touching StudentProfileService,
+     * exactly as before this method called into the shared guard.
+     */
+    @Transactional(readOnly = true)
+    public void requireHodScopeAllowsStudent(Long studentId, UserPrincipal principal) {
+        if (hodScopeResolver.resolveScopeCourse(principal) == null) {
+            return;
+        }
+        StudentProfile profile = studentProfileService.getByUserId(studentId);
+        hodScopeResolver.requireCourseAccess(principal, profile.getCourse().getId());
     }
 
     @Cacheable(value = PERCENTAGE_CACHE, key = "#studentId + ':' + #subjectId")

@@ -15,9 +15,12 @@ import com.example.Panacea.fees.repository.FeePaymentRepository;
 import com.example.Panacea.identity.entity.Role;
 import com.example.Panacea.identity.entity.User;
 import com.example.Panacea.identity.repository.UserRepository;
+import com.example.Panacea.identity.security.HodScopeResolver;
+import com.example.Panacea.identity.security.UserPrincipal;
 import com.example.Panacea.notifications.service.NotificationEventPublisher;
 import com.example.Panacea.proctor.dto.ProctorAssignmentResponse;
 import com.example.Panacea.proctor.service.ProctorAssignmentService;
+import com.example.Panacea.student.entity.StudentProfile;
 import com.example.Panacea.student.service.StudentProfileService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -44,6 +47,7 @@ public class ElectiveEnrollmentService {
     private final StudentProfileService studentProfileService;
     private final NotificationEventPublisher notificationEventPublisher;
     private final AuditLogService auditLogService;
+    private final HodScopeResolver hodScopeResolver;
 
     /**
      * Semester is resolved from the authenticated student's own StudentProfile,
@@ -116,12 +120,32 @@ public class ElectiveEnrollmentService {
                 .toList();
     }
 
+    /**
+     * ADMIN sees every unassigned request, unfiltered. An HOD is scoped to
+     * their own department via the requesting student's StudentProfile.course
+     * — this request entity has no course field of its own (unlike
+     * FeePayment), only a Subject with a many-to-many courses set that
+     * doesn't identify a single department, so the student's own profile is
+     * the actual path to a Course here.
+     */
     @Transactional(readOnly = true)
-    public List<ElectiveEnrollmentResponse> findUnassignedPending() {
-        return electiveEnrollmentRequestRepository
-                .findByStatusAndMentorIsNullOrderByIdDesc(EnrollmentStatus.PENDING).stream()
-                .map(ElectiveEnrollmentResponse::from)
-                .toList();
+    public List<ElectiveEnrollmentResponse> findUnassignedPending(UserPrincipal principal) {
+        List<ElectiveEnrollmentRequest> requests = electiveEnrollmentRequestRepository
+                .findByStatusAndMentorIsNullOrderByIdDesc(EnrollmentStatus.PENDING);
+
+        requests = hodScopeResolver.filterByHodScope(principal, requests,
+                r -> resolveCourseIdForStudent(r.getStudent()));
+
+        return requests.stream().map(ElectiveEnrollmentResponse::from).toList();
+    }
+
+    private Long resolveCourseIdForStudent(User student) {
+        try {
+            StudentProfile profile = studentProfileService.getByUserId(student.getId());
+            return profile.getCourse().getId();
+        } catch (EntityNotFoundException ex) {
+            return null;
+        }
     }
 
     @Transactional

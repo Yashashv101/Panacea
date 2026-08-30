@@ -37,7 +37,9 @@ public class AttendanceController {
     @GetMapping("/percentage/student/{studentId}")
     @PreAuthorize("hasAnyRole('STAFF', 'ADMIN', 'HOD')")
     public AttendancePercentageResponse percentageForStudent(@PathVariable Long studentId,
-                                                               @RequestParam Long subjectId) {
+                                                               @RequestParam Long subjectId,
+                                                               @AuthenticationPrincipal UserPrincipal principal) {
+        attendanceService.requireHodScopeAllowsStudent(studentId, principal);
         return attendanceService.computePercentage(studentId, subjectId);
     }
 

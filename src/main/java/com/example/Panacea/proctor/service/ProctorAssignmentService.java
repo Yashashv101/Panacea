@@ -5,6 +5,8 @@ import com.example.Panacea.fees.repository.FeePaymentRepository;
 import com.example.Panacea.identity.entity.Role;
 import com.example.Panacea.identity.entity.User;
 import com.example.Panacea.identity.repository.UserRepository;
+import com.example.Panacea.identity.security.HodScopeResolver;
+import com.example.Panacea.identity.security.UserPrincipal;
 import com.example.Panacea.proctor.dto.CreateProctorAssignmentRequest;
 import com.example.Panacea.proctor.dto.MenteeResponse;
 import com.example.Panacea.proctor.dto.ProctorAssignmentResponse;
@@ -31,6 +33,7 @@ public class ProctorAssignmentService {
     private final UserRepository userRepository;
     private final StudentProfileService studentProfileService;
     private final FeePaymentRepository feePaymentRepository;
+    private final HodScopeResolver hodScopeResolver;
 
     @Transactional
     public ProctorAssignmentResponse assign(CreateProctorAssignmentRequest request) {
@@ -118,9 +121,24 @@ public class ProctorAssignmentService {
                 .toList();
     }
 
+    /**
+     * ADMIN sees every assignment, unfiltered. An HOD is scoped to their own
+     * department via the assignment's staff.staffCourse — the same field
+     * regardless of assignmentType (EXAM or MENTOR), since both kinds are
+     * always a duty held by a STAFF member.
+     */
     @Transactional(readOnly = true)
-    public List<ProctorAssignmentResponse> findAll() {
-        return proctorAssignmentRepository.findAll().stream().map(ProctorAssignmentResponse::from).toList();
+    public List<ProctorAssignmentResponse> findAll(UserPrincipal principal) {
+        List<ProctorAssignment> assignments = proctorAssignmentRepository.findAll();
+
+        assignments = hodScopeResolver.filterByHodScope(principal, assignments, this::staffCourseIdOf);
+
+        return assignments.stream().map(ProctorAssignmentResponse::from).toList();
+    }
+
+    private Long staffCourseIdOf(ProctorAssignment assignment) {
+        return assignment.getStaff().getStaffCourse() != null
+                ? assignment.getStaff().getStaffCourse().getId() : null;
     }
 
     @Transactional(readOnly = true)

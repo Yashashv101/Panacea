@@ -55,8 +55,8 @@ public class ElectiveEnrollmentController {
 
     @GetMapping("/requests/unassigned")
     @PreAuthorize("hasAnyRole('ADMIN', 'HOD')")
-    public List<ElectiveEnrollmentResponse> unassignedPending() {
-        return electiveEnrollmentService.findUnassignedPending();
+    public List<ElectiveEnrollmentResponse> unassignedPending(@AuthenticationPrincipal UserPrincipal principal) {
+        return electiveEnrollmentService.findUnassignedPending(principal);
     }
 
     @PostMapping("/requests/{id}/approve")

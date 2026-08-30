@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 const STUDENT_NAV_ITEMS = [
@@ -31,7 +31,14 @@ const ADMIN_NAV_ITEMS = [
 ];
 
 export default function Sidebar() {
-  const { role } = useAuth();
+  const { role, logout } = useAuth();
+  const navigate = useNavigate();
+
+  function handleLogout() {
+    logout();
+    navigate("/login", { replace: true });
+  }
+
   const items =
     role === "ADMIN"
       ? ADMIN_NAV_ITEMS
@@ -46,7 +53,7 @@ export default function Sidebar() {
       <div className="border-b border-brass/30 px-5 py-6">
         <span className="font-display text-lg font-semibold text-ink">Panacea</span>
       </div>
-      <nav className="flex flex-col py-2">
+      <nav className="flex flex-1 flex-col py-2">
         {items.map((item) => (
           <NavLink
             key={item.to}
@@ -62,6 +69,13 @@ export default function Sidebar() {
           </NavLink>
         ))}
       </nav>
+      <button
+        type="button"
+        onClick={handleLogout}
+        className="border-t border-brass/30 px-5 py-3 text-left text-sm text-slate transition-colors hover:text-oxblood"
+      >
+        Log out
+      </button>
     </aside>
   );
 }

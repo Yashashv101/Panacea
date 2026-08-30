@@ -1,15 +1,21 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import apiClient from "../../api/client";
+import { inputClass, labelClass, extractErrorMessage } from "./academic/formStyles";
 
-const ROLES = ["ADMIN", "STAFF", "STUDENT"];
+const ROLES = ["ADMIN", "HOD", "STAFF", "STUDENT"];
 
-const EMPTY_FORM = { email: "", firstName: "", lastName: "", password: "", role: "STUDENT" };
+const EMPTY_FORM = { email: "", firstName: "", lastName: "", password: "", role: "STUDENT", courseId: "" };
 
 export default function Users() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [users, setUsers] = useState([]);
+  const [courses, setCourses] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState(null);
+
+  useEffect(() => {
+    apiClient.get("/courses").then(({ data }) => setCourses(data));
+  }, []);
 
   function updateField(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -20,20 +26,13 @@ export default function Users() {
     setMessage(null);
     setSubmitting(true);
     try {
-      const { data } = await apiClient.post("/users", form);
+      const payload = { ...form, courseId: form.role === "HOD" ? Number(form.courseId) : null };
+      const { data } = await apiClient.post("/users", payload);
       setUsers((prev) => [data, ...prev]);
       setForm(EMPTY_FORM);
       setMessage({ tone: "success", text: "User created." });
     } catch (err) {
-      const status = err.response?.status;
-      if (status === 409) {
-        setMessage({ tone: "error", text: "That email is already in use." });
-      } else if (status === 400 && err.response?.data?.errors) {
-        const firstError = Object.values(err.response.data.errors)[0];
-        setMessage({ tone: "error", text: firstError ?? "Please check the form and try again." });
-      } else {
-        setMessage({ tone: "error", text: "Something went wrong creating the user." });
-      }
+      setMessage({ tone: "error", text: extractErrorMessage(err, "Something went wrong creating the user.") });
     } finally {
       setSubmitting(false);
     }
@@ -112,6 +111,27 @@ export default function Users() {
               ))}
             </select>
           </label>
+
+          {form.role === "HOD" && (
+            <label className="flex flex-col gap-1.5">
+              <span className={labelClass}>Course (department)</span>
+              <select
+                required
+                value={form.courseId}
+                onChange={(e) => updateField("courseId", e.target.value)}
+                className={inputClass}
+              >
+                <option value="" disabled>
+                  Select a course
+                </option>
+                {courses.map((course) => (
+                  <option key={course.id} value={course.id}>
+                    {course.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
 
           {message && (
             <p className={`text-sm ${message.tone === "success" ? "text-slate" : "text-oxblood"}`}>

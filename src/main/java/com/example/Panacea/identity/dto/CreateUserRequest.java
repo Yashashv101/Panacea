@@ -11,6 +11,10 @@ import jakarta.validation.constraints.Size;
  * otherwise) — a cross-field requirement that can't be expressed with per-field
  * Bean Validation alone, so it's checked in StudentProfileService instead, same
  * as CreateProctorAssignmentRequest's assignmentType-conditional fields.
+ *
+ * courseId is also reused (sectionId/semesterId stay ignored) when role is HOD:
+ * it becomes User.hodCourse, the department the HOD heads. Required-when-HOD is
+ * checked in UserService, same cross-field pattern as the STUDENT case above.
  */
 public record CreateUserRequest(
         @NotBlank @Email String email,

@@ -9,7 +9,9 @@ public record UserResponse(
         String firstName,
         String lastName,
         Role role,
-        boolean enabled
+        boolean enabled,
+        Long hodCourseId,
+        String hodCourseName
 ) {
     public static UserResponse from(User user) {
         return new UserResponse(
@@ -18,6 +20,8 @@ public record UserResponse(
                 user.getFirstName(),
                 user.getLastName(),
                 user.getRole(),
-                user.isEnabled());
+                user.isEnabled(),
+                user.getHodCourse() != null ? user.getHodCourse().getId() : null,
+                user.getHodCourse() != null ? user.getHodCourse().getName() : null);
     }
 }

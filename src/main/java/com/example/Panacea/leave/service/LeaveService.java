@@ -83,25 +83,40 @@ public class LeaveService {
         return null;
     }
 
-    @Transactional
-    public LeaveRequestResponse approve(Long leaveRequestId, Long approverId) {
-        return decide(leaveRequestId, approverId, LeaveStatus.APPROVED);
+    /**
+     * The reject-403 guard behind approve/reject: an HOD may only decide a
+     * request whose requester is in their own department, resolved the same
+     * way findAll's filter resolves it. The resolveScopeCourse short-circuit
+     * avoids the StudentProfile lookup entirely for ADMIN, same reasoning as
+     * AttendanceService/ResultService's single-resource guards.
+     */
+    private void requireHodScopeAllowsRequester(User requester, User approver) {
+        if (hodScopeResolver.resolveScopeCourse(approver) == null) {
+            return;
+        }
+        hodScopeResolver.requireCourseAccess(approver, resolveCourseIdForRequester(requester));
     }
 
     @Transactional
-    public LeaveRequestResponse reject(Long leaveRequestId, Long approverId) {
-        return decide(leaveRequestId, approverId, LeaveStatus.REJECTED);
+    public LeaveRequestResponse approve(Long leaveRequestId, UserPrincipal principal) {
+        return decide(leaveRequestId, principal, LeaveStatus.APPROVED);
     }
 
-    private LeaveRequestResponse decide(Long leaveRequestId, Long approverId, LeaveStatus decision) {
+    @Transactional
+    public LeaveRequestResponse reject(Long leaveRequestId, UserPrincipal principal) {
+        return decide(leaveRequestId, principal, LeaveStatus.REJECTED);
+    }
+
+    private LeaveRequestResponse decide(Long leaveRequestId, UserPrincipal principal, LeaveStatus decision) {
         LeaveRequest leaveRequest = leaveRequestRepository.findById(leaveRequestId)
                 .orElseThrow(() -> new EntityNotFoundException("Leave request " + leaveRequestId + " not found"));
         if (leaveRequest.getStatus() != LeaveStatus.PENDING) {
             throw new IllegalStateException("Leave request " + leaveRequestId + " is not pending");
         }
 
-        User approver = userRepository.findById(approverId)
-                .orElseThrow(() -> new EntityNotFoundException("User " + approverId + " not found"));
+        User approver = userRepository.findById(principal.getId())
+                .orElseThrow(() -> new EntityNotFoundException("User " + principal.getId() + " not found"));
+        requireHodScopeAllowsRequester(leaveRequest.getRequester(), approver);
 
         leaveRequest.setStatus(decision);
         leaveRequest.setApprover(approver);

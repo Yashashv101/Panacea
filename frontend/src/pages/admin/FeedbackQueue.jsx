@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import apiClient from "../../api/client";
 import StatusStamp from "../../components/StatusStamp";
+import { useAuth } from "../../context/AuthContext";
 
 const STATUS_FILTERS = ["OPEN", "RESOLVED", "ALL"];
 
@@ -9,6 +10,12 @@ const inputClass =
 const actionClass = "text-xs font-medium uppercase tracking-wide text-slate hover:text-oxblood disabled:opacity-50";
 
 export default function FeedbackQueue() {
+  const { role } = useAuth();
+  // ADMIN and HOD can both reply/resolve server-side now (FeedbackController).
+  // No per-item department check is needed here — see LeaveQueue.jsx's
+  // comment: GET /feedback is already HOD-scoped, so every row an HOD sees
+  // already belongs to their own department.
+  const canRespond = role === "ADMIN" || role === "HOD";
   const [statusFilter, setStatusFilter] = useState("OPEN");
   const [items, setItems] = useState([]);
   const [drafts, setDrafts] = useState({});
@@ -119,7 +126,7 @@ export default function FeedbackQueue() {
               </div>
               <p className="mt-1 max-w-2xl text-sm text-slate">{item.message}</p>
 
-              {item.status === "OPEN" ? (
+              {canRespond && item.status === "OPEN" ? (
                 <div className="mt-3 flex max-w-2xl flex-col gap-2">
                   <textarea
                     rows={2}

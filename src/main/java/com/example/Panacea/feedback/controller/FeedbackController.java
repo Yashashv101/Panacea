@@ -48,14 +48,15 @@ public class FeedbackController {
     }
 
     @PostMapping("/{id}/reply")
-    @PreAuthorize("hasRole('ADMIN')")
-    public FeedbackResponse reply(@PathVariable Long id, @Valid @RequestBody ReplyFeedbackRequest request) {
-        return feedbackService.reply(id, request.reply());
+    @PreAuthorize("hasAnyRole('ADMIN', 'HOD')")
+    public FeedbackResponse reply(@PathVariable Long id, @Valid @RequestBody ReplyFeedbackRequest request,
+                                   @AuthenticationPrincipal UserPrincipal principal) {
+        return feedbackService.reply(id, request.reply(), principal);
     }
 
     @PostMapping("/{id}/resolve")
-    @PreAuthorize("hasRole('ADMIN')")
-    public FeedbackResponse resolve(@PathVariable Long id) {
-        return feedbackService.resolve(id);
+    @PreAuthorize("hasAnyRole('ADMIN', 'HOD')")
+    public FeedbackResponse resolve(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
+        return feedbackService.resolve(id, principal);
     }
 }

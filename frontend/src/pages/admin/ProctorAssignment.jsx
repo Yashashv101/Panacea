@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import apiClient from "../../api/client";
+import { useAuth } from "../../context/AuthContext";
 
 const inputClass =
   "border-0 border-b border-brass/40 bg-transparent px-0 py-2 text-sm text-ink outline-none focus:border-oxblood";
@@ -20,6 +21,15 @@ function extractErrorMessage(err, fallback) {
 }
 
 export default function ProctorAssignment() {
+  const { role } = useAuth();
+  // ADMIN and HOD can both create assignments server-side now
+  // (ProctorAssignmentController). No per-option department check is needed
+  // on the staff/student dropdowns below — they're populated from
+  // GET /users, which is already HOD-scoped, so every option an HOD can
+  // pick is already in their own department (and for MENTOR, the backend
+  // additionally checks the student's own course, not just the staff's —
+  // see ProctorAssignmentService#requireHodScopeAllowsStudent).
+  const canAssign = role === "ADMIN" || role === "HOD";
   const [staff, setStaff] = useState([]);
   const [students, setStudents] = useState([]);
   const [assignments, setAssignments] = useState([]);
@@ -36,15 +46,20 @@ export default function ProctorAssignment() {
       setLoading(true);
       setLoadError(null);
       try {
-        const [staffRes, studentsRes, assignmentsRes] = await Promise.all([
-          apiClient.get("/users", { params: { role: "STAFF" } }),
-          apiClient.get("/users", { params: { role: "STUDENT" } }),
-          apiClient.get("/proctor/assignments"),
-        ]);
+        const requests = [apiClient.get("/proctor/assignments")];
+        if (canAssign) {
+          requests.push(
+            apiClient.get("/users", { params: { role: "STAFF" } }),
+            apiClient.get("/users", { params: { role: "STUDENT" } })
+          );
+        }
+        const [assignmentsRes, staffRes, studentsRes] = await Promise.all(requests);
         if (cancelled) return;
-        setStaff(staffRes.data);
-        setStudents(studentsRes.data);
         setAssignments(assignmentsRes.data);
+        if (canAssign) {
+          setStaff(staffRes.data);
+          setStudents(studentsRes.data);
+        }
       } catch {
         if (!cancelled) setLoadError("Could not load proctor assignments.");
       } finally {
@@ -56,7 +71,7 @@ export default function ProctorAssignment() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [canAssign]);
 
   // EXAM caseload and MENTOR caseload are each capped at 25 independently per
   // staff member (ProctorAssignmentService), so they're counted separately here.
@@ -104,6 +119,7 @@ export default function ProctorAssignment() {
         <p className="text-sm text-oxblood">{loadError}</p>
       ) : (
         <>
+          {canAssign && (
           <section className="mb-8 border-b border-brass/20 pb-8">
             <h2 className="mb-4 font-display text-lg font-semibold text-ink">Assign a proctor</h2>
 
@@ -195,6 +211,7 @@ export default function ProctorAssignment() {
               </form>
             )}
           </section>
+          )}
 
           <section>
             <h2 className="mb-4 font-display text-lg font-semibold text-ink">Assignments</h2>

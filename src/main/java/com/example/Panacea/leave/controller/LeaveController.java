@@ -47,14 +47,14 @@ public class LeaveController {
     }
 
     @PostMapping("/{id}/approve")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HOD')")
     public LeaveRequestResponse approve(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
-        return leaveService.approve(id, principal.getId());
+        return leaveService.approve(id, principal);
     }
 
     @PostMapping("/{id}/reject")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HOD')")
     public LeaveRequestResponse reject(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
-        return leaveService.reject(id, principal.getId());
+        return leaveService.reject(id, principal);
     }
 }

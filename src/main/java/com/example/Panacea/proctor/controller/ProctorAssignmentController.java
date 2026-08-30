@@ -28,10 +28,11 @@ public class ProctorAssignmentController {
     private final ProctorAssignmentService proctorAssignmentService;
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HOD')")
     @ResponseStatus(HttpStatus.CREATED)
-    public ProctorAssignmentResponse assign(@Valid @RequestBody CreateProctorAssignmentRequest request) {
-        return proctorAssignmentService.assign(request);
+    public ProctorAssignmentResponse assign(@Valid @RequestBody CreateProctorAssignmentRequest request,
+                                             @AuthenticationPrincipal UserPrincipal principal) {
+        return proctorAssignmentService.assign(request, principal);
     }
 
     @GetMapping("/me")

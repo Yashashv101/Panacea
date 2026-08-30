@@ -36,21 +36,50 @@ public class ProctorAssignmentService {
     private final HodScopeResolver hodScopeResolver;
 
     @Transactional
-    public ProctorAssignmentResponse assign(CreateProctorAssignmentRequest request) {
+    public ProctorAssignmentResponse assign(CreateProctorAssignmentRequest request, UserPrincipal principal) {
         User staff = userRepository.findById(request.staffId())
                 .orElseThrow(() -> new EntityNotFoundException("User " + request.staffId() + " not found"));
         if (staff.getRole() != Role.STAFF) {
             throw new IllegalArgumentException("User " + request.staffId() + " is not a staff member");
         }
+        requireHodScopeAllowsStaff(staff, principal);
 
         ProctorAssignment assignment = switch (request.assignmentType()) {
             case EXAM -> buildExamAssignment(staff, request);
-            case MENTOR -> buildMentorAssignment(staff, request);
+            case MENTOR -> buildMentorAssignment(staff, request, principal);
         };
 
         // The (staff, session) and (student) unique constraints are the hard guarantee
         // against a duplicate assignment slipping through a race with the checks above.
         return ProctorAssignmentResponse.from(proctorAssignmentRepository.saveAndFlush(assignment));
+    }
+
+    /**
+     * The reject-403 guard behind assign(): an HOD may only assign duty to a
+     * staff member in their own department, regardless of assignmentType —
+     * both EXAM and MENTOR are a duty held by staff.staffCourse, same field
+     * findAll's filter already reads.
+     */
+    private void requireHodScopeAllowsStaff(User staff, UserPrincipal principal) {
+        if (hodScopeResolver.resolveScopeCourse(principal) == null) {
+            return;
+        }
+        Long staffCourseId = staff.getStaffCourse() != null ? staff.getStaffCourse().getId() : null;
+        hodScopeResolver.requireCourseAccess(principal, staffCourseId);
+    }
+
+    /**
+     * The MENTOR-only counterpart to requireHodScopeAllowsStaff above: a
+     * cross-department mentor assignment isn't just an access-control gap,
+     * it's a correctness bug (a mentee whose mentor is in a different
+     * department is nonsensical), so the student's own course is checked
+     * too — not just the staff side.
+     */
+    private void requireHodScopeAllowsStudent(User student, UserPrincipal principal) {
+        if (hodScopeResolver.resolveScopeCourse(principal) == null) {
+            return;
+        }
+        hodScopeResolver.requireCourseAccess(principal, studentProfileService.findCourseIdForUser(student.getId()));
     }
 
     private ProctorAssignment buildExamAssignment(User staff, CreateProctorAssignmentRequest request) {
@@ -81,7 +110,8 @@ public class ProctorAssignmentService {
                 .build();
     }
 
-    private ProctorAssignment buildMentorAssignment(User staff, CreateProctorAssignmentRequest request) {
+    private ProctorAssignment buildMentorAssignment(User staff, CreateProctorAssignmentRequest request,
+                                                      UserPrincipal principal) {
         if (request.studentId() == null) {
             throw new IllegalArgumentException("studentId is required for a MENTOR assignment");
         }
@@ -94,6 +124,7 @@ public class ProctorAssignmentService {
         if (student.getRole() != Role.STUDENT) {
             throw new IllegalArgumentException("User " + request.studentId() + " is not a student");
         }
+        requireHodScopeAllowsStudent(student, principal);
 
         if (proctorAssignmentRepository.findByStudentIdAndAssignmentType(student.getId(), AssignmentType.MENTOR)
                 .isPresent()) {

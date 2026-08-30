@@ -23,6 +23,7 @@ import MyProctor from "./pages/student/MyProctor.jsx";
 import Mentees from "./pages/staff/Mentees.jsx";
 import ElectiveRequests from "./pages/staff/ElectiveRequests.jsx";
 import HodDashboard from "./pages/hod/HodDashboard.jsx";
+import StudentLookup from "./pages/hod/StudentLookup.jsx";
 
 function RootRoute() {
   const { role } = useAuth();
@@ -55,6 +56,38 @@ export default function App() {
             element={
               <ProtectedRoute allowedRoles={["HOD"]}>
                 <HodDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/hod/leave"
+            element={
+              <ProtectedRoute allowedRoles={["HOD"]}>
+                <LeaveQueue />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/hod/feedback"
+            element={
+              <ProtectedRoute allowedRoles={["HOD"]}>
+                <FeedbackQueue />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/hod/proctor"
+            element={
+              <ProtectedRoute allowedRoles={["HOD"]}>
+                <ProctorAssignment />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/hod/students"
+            element={
+              <ProtectedRoute allowedRoles={["HOD"]}>
+                <StudentLookup />
               </ProtectedRoute>
             }
           />

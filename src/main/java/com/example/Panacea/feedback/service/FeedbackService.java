@@ -78,12 +78,13 @@ public class FeedbackService {
     }
 
     @Transactional
-    public FeedbackResponse reply(Long feedbackId, String reply) {
+    public FeedbackResponse reply(Long feedbackId, String reply, UserPrincipal principal) {
         Feedback feedback = feedbackRepository.findById(feedbackId)
                 .orElseThrow(() -> new EntityNotFoundException("Feedback " + feedbackId + " not found"));
         if (feedback.getStatus() != FeedbackStatus.OPEN) {
             throw new IllegalStateException("Feedback " + feedbackId + " is not open");
         }
+        requireHodScopeAllowsSubmitter(feedback.getSubmitter(), principal);
 
         feedback.setReply(reply);
         Feedback saved = feedbackRepository.save(feedback);
@@ -95,14 +96,27 @@ public class FeedbackService {
     }
 
     @Transactional
-    public FeedbackResponse resolve(Long feedbackId) {
+    public FeedbackResponse resolve(Long feedbackId, UserPrincipal principal) {
         Feedback feedback = feedbackRepository.findById(feedbackId)
                 .orElseThrow(() -> new EntityNotFoundException("Feedback " + feedbackId + " not found"));
         if (feedback.getStatus() != FeedbackStatus.OPEN) {
             throw new IllegalStateException("Feedback " + feedbackId + " is not open");
         }
+        requireHodScopeAllowsSubmitter(feedback.getSubmitter(), principal);
 
         feedback.setStatus(FeedbackStatus.RESOLVED);
         return FeedbackResponse.from(feedbackRepository.save(feedback));
+    }
+
+    /**
+     * The reject-403 guard behind reply/resolve — same shape as
+     * LeaveService#requireHodScopeAllowsRequester, scoped via the
+     * submitter's course instead of the requester's.
+     */
+    private void requireHodScopeAllowsSubmitter(User submitter, UserPrincipal principal) {
+        if (hodScopeResolver.resolveScopeCourse(principal) == null) {
+            return;
+        }
+        hodScopeResolver.requireCourseAccess(principal, resolveCourseIdForSubmitter(submitter));
     }
 }

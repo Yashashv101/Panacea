@@ -20,7 +20,13 @@ const STAFF_QUIZ_NAV_ITEMS = [
   { to: "/staff/quizzes/new", label: "New Quiz" },
 ];
 
-const HOD_NAV_ITEMS = [{ to: "/hod", label: "Dashboard" }];
+const HOD_NAV_ITEMS = [
+  { to: "/hod", label: "Dashboard" },
+  { to: "/hod/leave", label: "Leave Requests" },
+  { to: "/hod/feedback", label: "Feedback" },
+  { to: "/hod/proctor", label: "Proctor Assignment" },
+  { to: "/hod/students", label: "Student Lookup" },
+];
 
 const ADMIN_NAV_ITEMS = [
   { to: "/admin/users", label: "Users" },
@@ -62,7 +68,7 @@ export default function Sidebar() {
           <NavLink
             key={item.to}
             to={item.to}
-            end={item.to === "/" || item.to === "/staff/quizzes" || item.to === "/quizzes"}
+            end={item.to === "/" || item.to === "/staff/quizzes" || item.to === "/quizzes" || item.to === "/hod"}
             className={({ isActive }) =>
               `border-b border-brass/10 px-5 py-3 text-sm transition-colors ${
                 isActive ? "bg-card font-medium text-oxblood" : "text-slate hover:text-ink"

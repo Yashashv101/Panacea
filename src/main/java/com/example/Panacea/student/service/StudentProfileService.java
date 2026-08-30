@@ -15,10 +15,15 @@ import com.example.Panacea.enrollment.repository.ElectiveEnrollmentRequestReposi
 import com.example.Panacea.identity.dto.UserResponse;
 import com.example.Panacea.identity.entity.Role;
 import com.example.Panacea.identity.entity.User;
+import com.example.Panacea.identity.repository.UserRepository;
+import com.example.Panacea.identity.security.HodScopeResolver;
+import com.example.Panacea.identity.security.UserPrincipal;
+import com.example.Panacea.student.dto.StudentLookupResponse;
 import com.example.Panacea.student.entity.StudentProfile;
 import com.example.Panacea.student.repository.StudentProfileRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.Hibernate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -37,6 +43,8 @@ public class StudentProfileService {
     private final SemesterRepository semesterRepository;
     private final SubjectRepository subjectRepository;
     private final ElectiveEnrollmentRequestRepository electiveEnrollmentRequestRepository;
+    private final UserRepository userRepository;
+    private final HodScopeResolver hodScopeResolver;
 
     /**
      * The server-side lookup call sites use to resolve an authenticated
@@ -104,17 +112,6 @@ public class StudentProfileService {
     }
 
     /**
-     * The HOD-scoping counterpart to findStudentsInSection above — students
-     * whose profile places them in this Course, used by UserService#listUsers
-     * to filter the STUDENT roster down to an HOD's own department. Returns
-     * User (not UserResponse) since the caller still needs to fold this into
-     * a role-generic User list alongside the STAFF branch. StudentProfile.user
-     * is a lazy proxy; reading it here, inside the transaction, and folding it
-     * into a materialized list is what keeps this safe per CLAUDE.md's
-     * DTO-mapping rule — the same reasoning findStudentsInSection already
-     * relies on.
-     */
-    /**
      * The nullable counterpart to getByUserId — used by HOD department-scoping
      * checks (LeaveService, FeedbackService) that need "does this STUDENT belong
      * to my course, or null if they have no profile yet" without treating a
@@ -125,11 +122,64 @@ public class StudentProfileService {
         return studentProfileRepository.findByUserId(userId).map(p -> p.getCourse().getId()).orElse(null);
     }
 
+    /**
+     * The HOD-scoping counterpart to findStudentsInSection above — students
+     * whose profile places them in this Course, used by UserService#listUsers
+     * to filter the STUDENT roster down to an HOD's own department. Returns
+     * User (not UserResponse) since the caller still needs to fold this into
+     * a role-generic User list alongside the STAFF branch, so it can't map to
+     * UserResponse here the way findStudentsInSection does. StudentProfile.user
+     * is a LAZY proxy — merely obtaining the reference via getUser() inside
+     * this transaction does NOT force initialization (CLAUDE.md's DTO-mapping
+     * rule, the hard way: this shipped without the Hibernate.initialize call
+     * below, and every existing test passed anyway, because MockMvc run
+     * inside a @Transactional test method keeps the Hibernate session open
+     * across what would, in production, be two separate transactions —
+     * masking exactly this bug. A real request hit
+     * UserController.listUsers's UserResponse::from mapping with the
+     * session already closed and threw LazyInitializationException). The
+     * explicit Hibernate.initialize(user) below forces the proxy to load
+     * while the session is still open, which is what actually keeps this
+     * safe.
+     */
     @Transactional(readOnly = true)
     public List<User> findUsersInCourse(Long courseId) {
         return studentProfileRepository.findByCourseId(courseId).stream()
                 .map(StudentProfile::getUser)
+                .peek(Hibernate::initialize)
                 .toList();
+    }
+
+    /**
+     * The HOD/ADMIN "search a student by email" lookup behind
+     * GET /api/students/by-email. Deliberately collapses "no such student"
+     * and "that student exists but is outside your department" into the same
+     * empty result — like the filter-list endpoints (not the reject-403
+     * single-resource ones), since a distinct 403 here would let an HOD
+     * enumerate valid student emails in departments they can't otherwise see.
+     * ADMIN (or a null scope) always sees the match, if any.
+     *
+     * Maps to StudentLookupResponse here, inside the transaction, rather than
+     * returning the StudentProfile for the controller to map — every field
+     * StudentLookupResponse.from reads (profile.user, .course, .section,
+     * .semester) is a LAZY reference, so mapping it after this method
+     * returns would throw LazyInitializationException once the session
+     * closes (CLAUDE.md's DTO-mapping rule — see findUsersInCourse's comment
+     * above for how easily this slips past tests that run MockMvc inside a
+     * @Transactional test method).
+     */
+    @Transactional(readOnly = true)
+    public Optional<StudentLookupResponse> findByEmail(String email, UserPrincipal principal) {
+        Optional<User> student = userRepository.findByEmail(email).filter(u -> u.getRole() == Role.STUDENT);
+        if (student.isEmpty()) {
+            return Optional.empty();
+        }
+
+        Optional<StudentProfile> profile = studentProfileRepository.findByUserId(student.get().getId());
+        return hodScopeResolver.filterByHodScope(principal, profile.stream().toList(), p -> p.getCourse().getId())
+                .stream()
+                .findFirst()
+                .map(StudentLookupResponse::from);
     }
 
     /**

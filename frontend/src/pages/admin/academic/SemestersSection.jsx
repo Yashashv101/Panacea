@@ -2,9 +2,16 @@ import { useState } from "react";
 import apiClient from "../../../api/client";
 import { inputClass, labelClass, primaryButtonClass, rowActionClass, extractErrorMessage } from "./formStyles";
 
-const EMPTY_FORM = { number: "", label: "" };
+const EMPTY_FORM = { number: "", label: "", sessionId: "" };
 
-export default function SemestersSection({ semesters, setSemesters }) {
+// Derived from `number`, never independently settable — mirrors
+// SemesterService#deriveParity on the backend, which rejects any
+// mismatched value the caller sends.
+function deriveParity(number) {
+  return Number(number) % 2 === 1 ? "ODD" : "EVEN";
+}
+
+export default function SemestersSection({ semesters, setSemesters, sessions }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState(null);
@@ -12,12 +19,21 @@ export default function SemestersSection({ semesters, setSemesters }) {
   const [editForm, setEditForm] = useState(EMPTY_FORM);
   const [confirmingDeleteId, setConfirmingDeleteId] = useState(null);
 
+  function sessionLabel(sessionId) {
+    return sessions.find((s) => s.id === sessionId)?.label ?? "—";
+  }
+
   async function handleCreate(e) {
     e.preventDefault();
     setMessage(null);
     setSubmitting(true);
     try {
-      const { data } = await apiClient.post("/semesters", { number: Number(form.number), label: form.label });
+      const { data } = await apiClient.post("/semesters", {
+        number: Number(form.number),
+        label: form.label,
+        sessionId: Number(form.sessionId),
+        parity: deriveParity(form.number),
+      });
       setSemesters((prev) => [...prev, data]);
       setForm(EMPTY_FORM);
       setMessage({ tone: "success", text: "Semester created." });
@@ -30,7 +46,11 @@ export default function SemestersSection({ semesters, setSemesters }) {
 
   function startEdit(semester) {
     setEditingId(semester.id);
-    setEditForm({ number: String(semester.number), label: semester.label });
+    setEditForm({
+      number: String(semester.number),
+      label: semester.label,
+      sessionId: String(semester.sessionId),
+    });
     setConfirmingDeleteId(null);
   }
 
@@ -44,6 +64,8 @@ export default function SemestersSection({ semesters, setSemesters }) {
       const { data } = await apiClient.put(`/semesters/${id}`, {
         number: Number(editForm.number),
         label: editForm.label,
+        sessionId: Number(editForm.sessionId),
+        parity: deriveParity(editForm.number),
       });
       setSemesters((prev) => prev.map((s) => (s.id === id ? data : s)));
       cancelEdit();
@@ -72,7 +94,25 @@ export default function SemestersSection({ semesters, setSemesters }) {
     <section className="mb-10 border-b border-brass/20 pb-8">
       <h2 className="mb-4 font-display text-lg font-semibold text-ink">Semesters</h2>
 
-      <form onSubmit={handleCreate} className="mb-6 flex max-w-md items-end gap-4">
+      <form onSubmit={handleCreate} className="mb-6 flex max-w-2xl items-end gap-4">
+        <label className="flex w-40 flex-col gap-1.5">
+          <span className={labelClass}>Session</span>
+          <select
+            required
+            value={form.sessionId}
+            onChange={(e) => setForm((prev) => ({ ...prev, sessionId: e.target.value }))}
+            className={inputClass}
+          >
+            <option value="" disabled>
+              Select a session
+            </option>
+            {sessions.map((session) => (
+              <option key={session.id} value={session.id}>
+                {session.label}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className="flex w-24 flex-col gap-1.5">
           <span className={labelClass}>Number</span>
           <input
@@ -112,6 +152,17 @@ export default function SemestersSection({ semesters, setSemesters }) {
               {editingId === semester.id ? (
                 <>
                   <div className="flex flex-1 items-center gap-4">
+                    <select
+                      value={editForm.sessionId}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, sessionId: e.target.value }))}
+                      className={`${inputClass} w-32`}
+                    >
+                      {sessions.map((session) => (
+                        <option key={session.id} value={session.id}>
+                          {session.label}
+                        </option>
+                      ))}
+                    </select>
                     <input
                       type="number"
                       min="1"
@@ -138,6 +189,7 @@ export default function SemestersSection({ semesters, setSemesters }) {
               ) : (
                 <>
                   <div className="flex items-center gap-4">
+                    <span className="font-mono text-xs text-slate">{sessionLabel(semester.sessionId)}</span>
                     <span className="font-mono text-sm text-slate">Sem {semester.number}</span>
                     <span className="text-sm text-ink">{semester.label}</span>
                   </div>

@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import apiClient from "../../api/client";
 import CoursesSection from "./academic/CoursesSection";
+import SessionsSection from "./academic/SessionsSection";
 import SemestersSection from "./academic/SemestersSection";
 import SectionsSection from "./academic/SectionsSection";
 import SubjectsSection from "./academic/SubjectsSection";
 
 export default function AcademicStructure() {
   const [courses, setCourses] = useState([]);
+  const [sessions, setSessions] = useState([]);
   const [semesters, setSemesters] = useState([]);
   const [sections, setSections] = useState([]);
   const [subjects, setSubjects] = useState([]);
@@ -19,8 +21,9 @@ export default function AcademicStructure() {
 
     async function loadAll() {
       try {
-        const [coursesRes, semestersRes, sectionsRes, subjectsRes, staffRes] = await Promise.all([
+        const [coursesRes, sessionsRes, semestersRes, sectionsRes, subjectsRes, staffRes] = await Promise.all([
           apiClient.get("/courses"),
+          apiClient.get("/sessions"),
           apiClient.get("/semesters"),
           apiClient.get("/sections"),
           apiClient.get("/subjects"),
@@ -28,6 +31,7 @@ export default function AcademicStructure() {
         ]);
         if (cancelled) return;
         setCourses(coursesRes.data);
+        setSessions(sessionsRes.data);
         setSemesters(semestersRes.data);
         setSections(sectionsRes.data);
         setSubjects(subjectsRes.data);
@@ -58,7 +62,8 @@ export default function AcademicStructure() {
       ) : (
         <>
           <CoursesSection courses={courses} setCourses={setCourses} />
-          <SemestersSection semesters={semesters} setSemesters={setSemesters} />
+          <SessionsSection sessions={sessions} setSessions={setSessions} />
+          <SemestersSection semesters={semesters} setSemesters={setSemesters} sessions={sessions} />
           <SectionsSection sections={sections} setSections={setSections} courses={courses} />
           <SubjectsSection
             subjects={subjects}

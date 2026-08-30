@@ -68,10 +68,31 @@ public class SessionService {
         return session;
     }
 
+    /**
+     * Session.create() above always auto-populates SEMESTERS_PER_SESSION
+     * Semesters, and Semester.session is a plain (non-cascading) FK — so for
+     * every Session created through the normal flow, an unguarded delete
+     * would fall through to an unhandled DataIntegrityViolationException
+     * (500) instead of a clean error, the same class of hard-delete hazard
+     * already fixed for Course by dropping its DELETE endpoint in favor of
+     * setActive. Session has no such "inactive" concept to fall back on and
+     * Semester fans out to Subject/StudentProfile/FeeStructure/Timetable/
+     * Results, so cascading the delete would be far more destructive than
+     * skipping it — this guard instead blocks deletion outright (as a clean
+     * 409) whenever any Semester still references this Session. The only
+     * Sessions this ever allows through are ones whose Semesters were all
+     * separately removed first (e.g. immediately after creation, before any
+     * subject/student data exists) — deleting a populated Session is not
+     * meant to be possible.
+     */
     @Transactional
     public void delete(Long id) {
         if (!sessionRepository.existsById(id)) {
             throw new EntityNotFoundException("Session " + id + " not found");
+        }
+        if (semesterService.existsForSession(id)) {
+            throw new IllegalStateException(
+                    "Session " + id + " has semesters attached and cannot be deleted");
         }
         sessionRepository.deleteById(id);
     }

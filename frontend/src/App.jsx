@@ -23,6 +23,11 @@ import Electives from "./pages/student/Electives.jsx";
 import MyProctor from "./pages/student/MyProctor.jsx";
 import Mentees from "./pages/staff/Mentees.jsx";
 import ElectiveRequests from "./pages/staff/ElectiveRequests.jsx";
+import MyExamDuty from "./pages/staff/MyExamDuty.jsx";
+import MyTimetable from "./pages/staff/MyTimetable.jsx";
+import LeaveRequestForm from "./pages/LeaveRequestForm.jsx";
+import FeedbackForm from "./pages/FeedbackForm.jsx";
+import NotificationsInbox from "./pages/NotificationsInbox.jsx";
 import HodDashboard from "./pages/hod/HodDashboard.jsx";
 import StudentLookup from "./pages/hod/StudentLookup.jsx";
 
@@ -51,6 +56,15 @@ export default function App() {
           }
         >
           <Route path="/" element={<RootRoute />} />
+
+          <Route
+            path="/notifications"
+            element={
+              <ProtectedRoute>
+                <NotificationsInbox />
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/hod"
@@ -134,6 +148,22 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/leave"
+            element={
+              <ProtectedRoute allowedRoles={["STUDENT", "STAFF"]}>
+                <LeaveRequestForm />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/feedback"
+            element={
+              <ProtectedRoute allowedRoles={["STUDENT", "STAFF"]}>
+                <FeedbackForm />
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/staff/attendance"
@@ -180,6 +210,22 @@ export default function App() {
             element={
               <ProtectedRoute allowedRoles={["STAFF"]}>
                 <ElectiveRequests />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/staff/exam-duty"
+            element={
+              <ProtectedRoute allowedRoles={["STAFF"]}>
+                <MyExamDuty />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/staff/timetable"
+            element={
+              <ProtectedRoute allowedRoles={["STAFF"]}>
+                <MyTimetable />
               </ProtectedRoute>
             }
           />

@@ -6,6 +6,8 @@ const STUDENT_NAV_ITEMS = [
   { to: "/quizzes", label: "Quizzes" },
   { to: "/electives", label: "Electives" },
   { to: "/proctor", label: "My Proctor" },
+  { to: "/leave", label: "Leave Requests" },
+  { to: "/feedback", label: "Feedback" },
 ];
 
 const STAFF_NAV_ITEMS = [
@@ -13,6 +15,10 @@ const STAFF_NAV_ITEMS = [
   { to: "/staff/results", label: "Enter Results" },
   { to: "/staff/mentees", label: "My Mentees" },
   { to: "/staff/electives", label: "Elective Requests" },
+  { to: "/staff/exam-duty", label: "My Exam Duty" },
+  { to: "/staff/timetable", label: "My Timetable" },
+  { to: "/leave", label: "Leave Requests" },
+  { to: "/feedback", label: "Feedback" },
 ];
 
 const STAFF_QUIZ_NAV_ITEMS = [
@@ -39,6 +45,8 @@ const ADMIN_NAV_ITEMS = [
   { to: "/admin/proctor", label: "Proctor Assignment" },
 ];
 
+const NOTIFICATIONS_NAV_ITEM = { to: "/notifications", label: "Notifications" };
+
 export default function Sidebar() {
   const { role, logout } = useAuth();
   const navigate = useNavigate();
@@ -48,7 +56,7 @@ export default function Sidebar() {
     navigate("/login", { replace: true });
   }
 
-  const items =
+  const roleItems =
     role === "ADMIN"
       ? ADMIN_NAV_ITEMS
       : role === "STAFF"
@@ -58,6 +66,8 @@ export default function Sidebar() {
       : role === "HOD"
       ? HOD_NAV_ITEMS
       : [];
+
+  const items = role ? [...roleItems, NOTIFICATIONS_NAV_ITEM] : roleItems;
 
   return (
     <aside className="flex w-56 shrink-0 flex-col border-r border-brass/30 bg-paper">

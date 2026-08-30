@@ -103,6 +103,16 @@ public class SemesterService {
                 .orElseThrow(() -> new EntityNotFoundException("Session " + sessionId + " not found"));
     }
 
+    /**
+     * Used by SessionService to guard Session deletion — see that method's
+     * comment for why a Session with any Semester still attached can't be
+     * hard-deleted.
+     */
+    @Transactional(readOnly = true)
+    public boolean existsForSession(Long sessionId) {
+        return semesterRepository.existsBySessionId(sessionId);
+    }
+
     @Transactional
     public void delete(Long id) {
         if (!semesterRepository.existsById(id)) {

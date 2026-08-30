@@ -2,13 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import apiClient from "../../api/client";
 import { inputClass, labelClass, primaryButtonClass, extractErrorMessage } from "./academic/formStyles";
 import StatusStamp from "../../components/StatusStamp";
-
-const DAYS = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"];
-const PERIODS = [1, 2, 3, 4, 5, 6];
-
-function dayLabel(day) {
-  return day.charAt(0) + day.slice(1).toLowerCase();
-}
+import TimetableGrid from "../../components/TimetableGrid";
 
 export default function TimetableGeneration() {
   const [sessions, setSessions] = useState([]);
@@ -174,10 +168,6 @@ export default function TimetableGeneration() {
     } finally {
       setSectionEntriesLoading(false);
     }
-  }
-
-  function entryFor(day, period) {
-    return sectionEntries.find((entry) => entry.day === day && entry.period === period);
   }
 
   const canGenerate = Boolean(sessionId && semesterId && courseId) && !generating;
@@ -376,51 +366,11 @@ export default function TimetableGeneration() {
                     </div>
 
                     {expandedSectionId === section.sectionId && (
-                      <div className="mt-3 overflow-x-auto">
+                      <div className="mt-3">
                         {sectionEntriesLoading ? (
                           <p className="text-sm text-slate">Loading…</p>
                         ) : (
-                          <table className="w-full border-collapse text-sm">
-                            <thead>
-                              <tr>
-                                <th className="border-b border-brass/30 py-2 pr-4 text-left text-xs font-medium uppercase tracking-wide text-slate">
-                                  Day
-                                </th>
-                                {PERIODS.map((period) => (
-                                  <th
-                                    key={period}
-                                    className="border-b border-brass/30 px-3 py-2 text-left font-mono text-xs font-medium uppercase tracking-wide text-slate"
-                                  >
-                                    P{period}
-                                  </th>
-                                ))}
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {DAYS.map((day) => (
-                                <tr key={day}>
-                                  <td className="border-b border-brass/20 py-3 pr-4 text-sm text-ink">
-                                    {dayLabel(day)}
-                                  </td>
-                                  {PERIODS.map((period) => {
-                                    const entry = entryFor(day, period);
-                                    return (
-                                      <td key={period} className="border-b border-brass/20 px-3 py-3 align-top">
-                                        {entry ? (
-                                          <div>
-                                            <div className="text-sm text-ink">{entry.subjectName}</div>
-                                            <div className="text-xs text-slate">{entry.staffName}</div>
-                                          </div>
-                                        ) : (
-                                          <span className="text-sm text-slate">—</span>
-                                        )}
-                                      </td>
-                                    );
-                                  })}
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                          <TimetableGrid entries={sectionEntries} />
                         )}
                       </div>
                     )}

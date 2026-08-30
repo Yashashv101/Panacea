@@ -28,6 +28,11 @@ export default function Users() {
   const [confirmingLockId, setConfirmingLockId] = useState(null);
   const [resetPasswordId, setResetPasswordId] = useState(null);
   const [newPassword, setNewPassword] = useState("");
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState(null);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editMessage, setEditMessage] = useState(null);
 
   useEffect(() => {
     apiClient.get("/courses").then(({ data }) => setCourses(data));
@@ -36,9 +41,11 @@ export default function Users() {
     apiClient.get("/users").then(({ data }) => setUsers(data));
   }, []);
 
-  const sectionsForSelectedCourse = sections.filter(
-    (section) => String(section.courseId) === String(form.courseId)
-  );
+  function sectionsForCourse(courseId) {
+    return sections.filter((section) => String(section.courseId) === String(courseId));
+  }
+
+  const sectionsForSelectedCourse = sectionsForCourse(form.courseId);
 
   function updateField(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -110,6 +117,75 @@ export default function Users() {
       cancelResetPassword();
     } catch (err) {
       setListMessage({ tone: "error", text: extractErrorMessage(err, "Could not reset the password.") });
+    }
+  }
+
+  async function startEdit(targetUser) {
+    setListMessage(null);
+    setConfirmingLockId(null);
+    cancelResetPassword();
+    setEditingId(targetUser.id);
+    setEditMessage(null);
+    setEditForm({
+      firstName: targetUser.firstName,
+      lastName: targetUser.lastName,
+      courseId: targetUser.staffCourseId ? String(targetUser.staffCourseId) : "",
+      sectionId: "",
+      semesterId: "",
+    });
+
+    // STUDENT placement (course/section/semester) isn't on UserResponse at
+    // all — it lives on StudentProfile, so it has to be fetched separately
+    // via the same admin lookup StudentLookup.jsx uses, keyed by email since
+    // there's no "get profile by user id" endpoint.
+    if (targetUser.role === "STUDENT") {
+      setEditLoading(true);
+      try {
+        const { data } = await apiClient.get("/students/by-email", { params: { email: targetUser.email } });
+        setEditForm((prev) => ({
+          ...prev,
+          courseId: String(data.courseId),
+          sectionId: String(data.sectionId),
+          semesterId: String(data.semesterId),
+        }));
+      } catch {
+        setEditMessage({ tone: "error", text: "Could not load this student's current placement." });
+      } finally {
+        setEditLoading(false);
+      }
+    }
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditForm(null);
+  }
+
+  function updateEditCourse(value) {
+    setEditForm((prev) => ({ ...prev, courseId: value, sectionId: "" }));
+  }
+
+  async function handleSaveEdit(targetUser) {
+    setEditMessage(null);
+    setEditSubmitting(true);
+    try {
+      const isStudent = targetUser.role === "STUDENT";
+      const isStaff = targetUser.role === "STAFF";
+      const payload = {
+        firstName: editForm.firstName,
+        lastName: editForm.lastName,
+        enabled: targetUser.enabled,
+        courseId: isStudent || isStaff ? Number(editForm.courseId) : null,
+        sectionId: isStudent ? Number(editForm.sectionId) : null,
+        semesterId: isStudent ? Number(editForm.semesterId) : null,
+      };
+      const { data } = await apiClient.put(`/users/${targetUser.id}`, payload);
+      setUsers((prev) => prev.map((u) => (u.id === data.id ? data : u)));
+      cancelEdit();
+    } catch (err) {
+      setEditMessage({ tone: "error", text: extractErrorMessage(err, "Could not update this user.") });
+    } finally {
+      setEditSubmitting(false);
     }
   }
 
@@ -294,6 +370,9 @@ export default function Users() {
                     <StatusStamp status={user.enabled ? "ACTIVE" : "LOCKED"} />
                   </div>
                   <div className="flex items-center gap-4">
+                    <button type="button" onClick={() => startEdit(user)} className={rowActionClass}>
+                      Edit
+                    </button>
                     <button type="button" onClick={() => startResetPassword(user)} className={rowActionClass}>
                       Reset password
                     </button>
@@ -306,6 +385,140 @@ export default function Users() {
                     </button>
                   </div>
                 </div>
+
+                {editingId === user.id && (
+                  <div className="mt-3 flex flex-col gap-4 border-t border-brass/10 pt-3">
+                    {editLoading ? (
+                      <p className="text-sm text-slate">Loading current placement…</p>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-2 gap-5">
+                          <label className="flex flex-col gap-1.5">
+                            <span className={labelClass}>First name</span>
+                            <input
+                              type="text"
+                              required
+                              value={editForm.firstName}
+                              onChange={(e) => setEditForm((prev) => ({ ...prev, firstName: e.target.value }))}
+                              className={inputClass}
+                            />
+                          </label>
+                          <label className="flex flex-col gap-1.5">
+                            <span className={labelClass}>Last name</span>
+                            <input
+                              type="text"
+                              required
+                              value={editForm.lastName}
+                              onChange={(e) => setEditForm((prev) => ({ ...prev, lastName: e.target.value }))}
+                              className={inputClass}
+                            />
+                          </label>
+                        </div>
+
+                        {user.role === "STAFF" && (
+                          <label className="flex max-w-xs flex-col gap-1.5">
+                            <span className={labelClass}>Course (department)</span>
+                            <select
+                              required
+                              value={editForm.courseId}
+                              onChange={(e) => setEditForm((prev) => ({ ...prev, courseId: e.target.value }))}
+                              className={inputClass}
+                            >
+                              <option value="" disabled>
+                                Select a course
+                              </option>
+                              {courses.filter((course) => course.active).map((course) => (
+                                <option key={course.id} value={course.id}>
+                                  {course.name}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                        )}
+
+                        {user.role === "STUDENT" && (
+                          <div className="grid grid-cols-3 gap-5">
+                            <label className="flex flex-col gap-1.5">
+                              <span className={labelClass}>Course</span>
+                              <select
+                                required
+                                value={editForm.courseId}
+                                onChange={(e) => updateEditCourse(e.target.value)}
+                                className={inputClass}
+                              >
+                                <option value="" disabled>
+                                  Select a course
+                                </option>
+                                {courses.filter((course) => course.active).map((course) => (
+                                  <option key={course.id} value={course.id}>
+                                    {course.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <label className="flex flex-col gap-1.5">
+                              <span className={labelClass}>Section</span>
+                              <select
+                                required
+                                disabled={!editForm.courseId}
+                                value={editForm.sectionId}
+                                onChange={(e) => setEditForm((prev) => ({ ...prev, sectionId: e.target.value }))}
+                                className={inputClass}
+                              >
+                                <option value="" disabled>
+                                  {editForm.courseId ? "Select a section" : "Select a course first"}
+                                </option>
+                                {sectionsForCourse(editForm.courseId).map((section) => (
+                                  <option key={section.id} value={section.id}>
+                                    {section.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <label className="flex flex-col gap-1.5">
+                              <span className={labelClass}>Semester</span>
+                              <select
+                                required
+                                value={editForm.semesterId}
+                                onChange={(e) => setEditForm((prev) => ({ ...prev, semesterId: e.target.value }))}
+                                className={inputClass}
+                              >
+                                <option value="" disabled>
+                                  Select a semester
+                                </option>
+                                {semesters.map((semester) => (
+                                  <option key={semester.id} value={semester.id}>
+                                    {semester.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                          </div>
+                        )}
+
+                        {editMessage && (
+                          <p className={`text-sm ${editMessage.tone === "success" ? "text-slate" : "text-oxblood"}`}>
+                            {editMessage.text}
+                          </p>
+                        )}
+
+                        <div className="flex items-center gap-4">
+                          <button
+                            type="button"
+                            onClick={() => handleSaveEdit(user)}
+                            disabled={editSubmitting}
+                            className={rowActionClass}
+                          >
+                            {editSubmitting ? "Saving…" : "Save"}
+                          </button>
+                          <button type="button" onClick={cancelEdit} className={rowActionClass}>
+                            Cancel
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
 
                 {resetPasswordId === user.id && (
                   <div className="mt-3 flex items-end gap-4">

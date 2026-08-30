@@ -54,7 +54,7 @@ public class ElectiveEnrollmentController {
     }
 
     @GetMapping("/requests/unassigned")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HOD')")
     public List<ElectiveEnrollmentResponse> unassignedPending() {
         return electiveEnrollmentService.findUnassignedPending();
     }

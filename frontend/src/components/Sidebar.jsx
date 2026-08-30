@@ -20,6 +20,8 @@ const STAFF_QUIZ_NAV_ITEMS = [
   { to: "/staff/quizzes/new", label: "New Quiz" },
 ];
 
+const HOD_NAV_ITEMS = [{ to: "/hod", label: "Dashboard" }];
+
 const ADMIN_NAV_ITEMS = [
   { to: "/admin/users", label: "Users" },
   { to: "/admin/academic-structure", label: "Academic Structure" },
@@ -46,6 +48,8 @@ export default function Sidebar() {
       ? [...STAFF_NAV_ITEMS, ...STAFF_QUIZ_NAV_ITEMS]
       : role === "STUDENT"
       ? STUDENT_NAV_ITEMS
+      : role === "HOD"
+      ? HOD_NAV_ITEMS
       : [];
 
   return (

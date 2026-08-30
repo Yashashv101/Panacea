@@ -61,7 +61,7 @@ public class QuizController {
     }
 
     @GetMapping("/{id}/attempts")
-    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN', 'HOD')")
     public List<QuizAttemptResponse> attempts(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
         return quizService.findAttempts(id, principal.getId());
     }

@@ -22,12 +22,14 @@ import Electives from "./pages/student/Electives.jsx";
 import MyProctor from "./pages/student/MyProctor.jsx";
 import Mentees from "./pages/staff/Mentees.jsx";
 import ElectiveRequests from "./pages/staff/ElectiveRequests.jsx";
+import HodDashboard from "./pages/hod/HodDashboard.jsx";
 
 function RootRoute() {
   const { role } = useAuth();
   if (role === "STUDENT") return <StudentDashboard />;
   if (role === "STAFF") return <Navigate to="/staff/attendance" replace />;
   if (role === "ADMIN") return <Navigate to="/admin/users" replace />;
+  if (role === "HOD") return <Navigate to="/hod" replace />;
   return <Navigate to="/login" replace />;
 }
 
@@ -47,6 +49,15 @@ export default function App() {
           }
         >
           <Route path="/" element={<RootRoute />} />
+
+          <Route
+            path="/hod"
+            element={
+              <ProtectedRoute allowedRoles={["HOD"]}>
+                <HodDashboard />
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/subjects/:subjectId"

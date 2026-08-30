@@ -40,7 +40,7 @@ public class LeaveController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HOD')")
     public List<LeaveRequestResponse> findAll(@RequestParam(required = false) LeaveStatus status) {
         return leaveService.findAll(status);
     }

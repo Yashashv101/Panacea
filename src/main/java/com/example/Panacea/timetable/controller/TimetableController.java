@@ -26,7 +26,7 @@ public class TimetableController {
     private final TimetableService timetableService;
 
     @PostMapping("/generate")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HOD')")
     public TimetableGenerationResponse generate(@Valid @RequestBody GenerateTimetableRequest request,
                                                  @AuthenticationPrincipal UserPrincipal principal) {
         return timetableService.generate(request, principal.getId());

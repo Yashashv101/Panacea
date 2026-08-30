@@ -41,7 +41,7 @@ public class FeedbackController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HOD')")
     public List<FeedbackResponse> findAll(@RequestParam(required = false) FeedbackStatus status) {
         return feedbackService.findAll(status);
     }

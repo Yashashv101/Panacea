@@ -11,4 +11,6 @@ public interface StudentProfileRepository extends JpaRepository<StudentProfile, 
     Optional<StudentProfile> findByUserId(Long userId);
 
     List<StudentProfile> findBySectionId(Long sectionId);
+
+    List<StudentProfile> findByCourseId(Long courseId);
 }

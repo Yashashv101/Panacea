@@ -7,6 +7,8 @@ import com.example.Panacea.identity.entity.User;
 import com.example.Panacea.identity.dto.CreateUserRequest;
 import com.example.Panacea.identity.dto.UpdateUserRequest;
 import com.example.Panacea.identity.repository.UserRepository;
+import com.example.Panacea.identity.security.HodScopeResolver;
+import com.example.Panacea.identity.security.UserPrincipal;
 import com.example.Panacea.student.service.StudentProfileService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +16,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -24,10 +27,39 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final StudentProfileService studentProfileService;
     private final CourseRepository courseRepository;
+    private final HodScopeResolver hodScopeResolver;
 
+    /**
+     * Reference implementation of HOD department-scoping (see
+     * HodScopeResolver's javadoc for the full endpoint list this pattern is
+     * meant to extend to next). ADMIN — or anyone HodScopeResolver returns
+     * null for — is unfiltered, exactly like before. An HOD is scoped to
+     * their own hodCourse: STUDENT rows are filtered via
+     * StudentProfile.course (StudentProfileService#findUsersInCourse),
+     * STAFF rows via User.staffCourse directly. role=null combines both
+     * course-scoped sets; role=ADMIN or role=HOD requested by a scoped HOD
+     * returns empty, since neither ADMIN nor HOD rows carry a course
+     * membership this scoping concept applies to.
+     */
     @Transactional(readOnly = true)
-    public List<User> listUsers(Role role) {
-        return role != null ? userRepository.findByRole(role) : userRepository.findAll();
+    public List<User> listUsers(Role role, UserPrincipal principal) {
+        Course scopeCourse = hodScopeResolver.resolveScopeCourse(principal);
+        if (scopeCourse == null) {
+            return role != null ? userRepository.findByRole(role) : userRepository.findAll();
+        }
+
+        if (role == Role.STUDENT) {
+            return studentProfileService.findUsersInCourse(scopeCourse.getId());
+        }
+        if (role == Role.STAFF) {
+            return userRepository.findByRoleAndStaffCourseId(Role.STAFF, scopeCourse.getId());
+        }
+        if (role == null) {
+            List<User> scoped = new ArrayList<>(studentProfileService.findUsersInCourse(scopeCourse.getId()));
+            scoped.addAll(userRepository.findByRoleAndStaffCourseId(Role.STAFF, scopeCourse.getId()));
+            return scoped;
+        }
+        return List.of();
     }
 
     @Transactional

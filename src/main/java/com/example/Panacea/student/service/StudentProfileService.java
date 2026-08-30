@@ -104,6 +104,24 @@ public class StudentProfileService {
     }
 
     /**
+     * The HOD-scoping counterpart to findStudentsInSection above — students
+     * whose profile places them in this Course, used by UserService#listUsers
+     * to filter the STUDENT roster down to an HOD's own department. Returns
+     * User (not UserResponse) since the caller still needs to fold this into
+     * a role-generic User list alongside the STAFF branch. StudentProfile.user
+     * is a lazy proxy; reading it here, inside the transaction, and folding it
+     * into a materialized list is what keeps this safe per CLAUDE.md's
+     * DTO-mapping rule — the same reasoning findStudentsInSection already
+     * relies on.
+     */
+    @Transactional(readOnly = true)
+    public List<User> findUsersInCourse(Long courseId) {
+        return studentProfileRepository.findByCourseId(courseId).stream()
+                .map(StudentProfile::getUser)
+                .toList();
+    }
+
+    /**
      * A student's core subjects, derived from their profile's course + semester
      * via Subject.courses — NOT section. Core/elective subjects are the same
      * across every section of a course; section only ever determines which

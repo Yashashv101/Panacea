@@ -39,7 +39,7 @@ public class ResultController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN', 'HOD')")
     public ResponseEntity<StudentResultResponse> findOne(@RequestParam Long studentId,
                                                            @RequestParam Long subjectId,
                                                            @RequestParam Long semesterId,

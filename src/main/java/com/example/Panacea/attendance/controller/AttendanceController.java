@@ -35,7 +35,7 @@ public class AttendanceController {
     }
 
     @GetMapping("/percentage/student/{studentId}")
-    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN', 'HOD')")
     public AttendancePercentageResponse percentageForStudent(@PathVariable Long studentId,
                                                                @RequestParam Long subjectId) {
         return attendanceService.computePercentage(studentId, subjectId);

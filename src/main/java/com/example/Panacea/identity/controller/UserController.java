@@ -48,12 +48,12 @@ public class UserController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF', 'HOD')")
     public List<UserResponse> listUsers(@RequestParam(required = false) Role role,
                                          @AuthenticationPrincipal UserPrincipal principal) {
         if (principal.getUser().getRole() == Role.STAFF && role != Role.STUDENT) {
             throw new AccessDeniedException("Staff may only list students");
         }
-        return userService.listUsers(role).stream().map(UserResponse::from).toList();
+        return userService.listUsers(role, principal).stream().map(UserResponse::from).toList();
     }
 }

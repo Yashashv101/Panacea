@@ -28,6 +28,8 @@ const STAFF_QUIZ_NAV_ITEMS = [
 
 const HOD_NAV_ITEMS = [
   { to: "/hod", label: "Dashboard" },
+  { to: "/hod/subjects", label: "Subjects" },
+  { to: "/hod/faculty", label: "Faculty" },
   { to: "/hod/leave", label: "Leave Requests" },
   { to: "/hod/feedback", label: "Feedback" },
   { to: "/hod/proctor", label: "Proctor Assignment" },

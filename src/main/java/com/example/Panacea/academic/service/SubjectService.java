@@ -36,6 +36,20 @@ public class SubjectService {
         return subjectRepository.findAll().stream().map(SubjectResponse::from).toList();
     }
 
+    /**
+     * Returns all subjects linked to the given course (via subject_courses join
+     * table). Used by the HOD subjects view to show only their department's subjects.
+     * The semester/courses collections on Subject are LAZY, so they are accessed
+     * here inside the @Transactional method before mapping to DTO.
+     */
+    @Transactional(readOnly = true)
+    public List<SubjectResponse> findByCourseId(Long courseId) {
+        return subjectRepository.findByCoursesId(courseId)
+                .stream()
+                .map(SubjectResponse::from)
+                .toList();
+    }
+
     @Transactional(readOnly = true)
     public SubjectResponse findById(Long id) {
         return SubjectResponse.from(findEntityById(id));

@@ -13,4 +13,10 @@ public interface SubjectRepository extends JpaRepository<Subject, Long> {
     List<Subject> findBySemesterIdAndType(Long semesterId, SubjectType type);
 
     List<Subject> findByCoursesIdAndSemesterIdAndType(Long courseId, Long semesterId, SubjectType type);
+
+    /**
+     * All subjects linked to a given course (via subject_courses join table).
+     * Used by the HOD subjects view to show the department's full subject catalogue.
+     */
+    List<Subject> findByCoursesId(Long courseId);
 }

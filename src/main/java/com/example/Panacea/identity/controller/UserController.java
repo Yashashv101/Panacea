@@ -64,6 +64,11 @@ public class UserController {
         return UserResponse.from(user);
     }
 
+    @GetMapping("/me")
+    public UserResponse getMe(@AuthenticationPrincipal UserPrincipal principal) {
+        return UserResponse.from(principal.getUser());
+    }
+
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'STAFF', 'HOD')")
     public List<UserResponse> listUsers(@RequestParam(required = false) Role role,

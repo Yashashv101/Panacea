@@ -29,6 +29,9 @@ import LeaveRequestForm from "./pages/LeaveRequestForm.jsx";
 import FeedbackForm from "./pages/FeedbackForm.jsx";
 import NotificationsInbox from "./pages/NotificationsInbox.jsx";
 import HodDashboard from "./pages/hod/HodDashboard.jsx";
+import HodSubjects from "./pages/hod/HodSubjects.jsx";
+import HodSubjectDetail from "./pages/hod/HodSubjectDetail.jsx";
+import HodFaculty from "./pages/hod/HodFaculty.jsx";
 import StudentLookup from "./pages/hod/StudentLookup.jsx";
 
 function RootRoute() {
@@ -103,6 +106,30 @@ export default function App() {
             element={
               <ProtectedRoute allowedRoles={["HOD"]}>
                 <StudentLookup />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/hod/subjects"
+            element={
+              <ProtectedRoute allowedRoles={["HOD"]}>
+                <HodSubjects />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/hod/subjects/:subjectId"
+            element={
+              <ProtectedRoute allowedRoles={["HOD"]}>
+                <HodSubjectDetail />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/hod/faculty"
+            element={
+              <ProtectedRoute allowedRoles={["HOD"]}>
+                <HodFaculty />
               </ProtectedRoute>
             }
           />

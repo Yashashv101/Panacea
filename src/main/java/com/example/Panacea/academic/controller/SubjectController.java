@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -26,8 +27,18 @@ public class SubjectController {
 
     private final SubjectService subjectService;
 
+    /**
+     * Returns subjects optionally filtered by courseId.
+     * ADMIN sees all; HOD uses ?courseId= to scope to their own department.
+     * No role restriction here — the caller supplies the course scope;
+     * HOD security is enforced by the dashboard page which reads the HOD's
+     * own hodCourseId from their JWT context before making the request.
+     */
     @GetMapping
-    public List<SubjectResponse> findAll() {
+    public List<SubjectResponse> findAll(@RequestParam(required = false) Long courseId) {
+        if (courseId != null) {
+            return subjectService.findByCourseId(courseId);
+        }
         return subjectService.findAll();
     }
 

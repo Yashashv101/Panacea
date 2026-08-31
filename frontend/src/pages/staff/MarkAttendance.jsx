@@ -13,8 +13,7 @@ function todayIsoDate() {
 export default function MarkAttendance() {
   const { userId } = useAuth();
 
-  const [subjects, setSubjects] = useState([]);
-  const [sections, setSections] = useState([]);
+  const [assignedSubjects, setAssignedSubjects] = useState([]);
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
@@ -35,13 +34,9 @@ export default function MarkAttendance() {
       setLoading(true);
       setLoadError(null);
       try {
-        const [subjectsRes, sectionsRes] = await Promise.all([
-          apiClient.get("/subjects"),
-          apiClient.get("/sections"),
-        ]);
+        const res = await apiClient.get("/academic/staff-assignments/me");
         if (cancelled) return;
-        setSubjects(subjectsRes.data);
-        setSections(sectionsRes.data);
+        setAssignedSubjects(res.data);
       } catch {
         if (!cancelled) setLoadError("Could not load attendance data.");
       } finally {
@@ -87,17 +82,8 @@ export default function MarkAttendance() {
     };
   }, [sectionId]);
 
-  const ownedSubjects = useMemo(
-    () => subjects.filter((subject) => subject.primaryStaffId === userId),
-    [subjects, userId]
-  );
-
-  const selectedSubject = ownedSubjects.find((subject) => subject.id === Number(subjectId));
-
-  const availableSections = useMemo(() => {
-    if (!selectedSubject) return [];
-    return sections.filter((section) => selectedSubject.sectionIds.includes(section.id));
-  }, [selectedSubject, sections]);
+  const selectedSubject = assignedSubjects.find((s) => s.subjectId === Number(subjectId));
+  const availableSections = selectedSubject?.sections ?? [];
 
   function handleSubjectChange(value) {
     setSubjectId(value);
@@ -126,7 +112,7 @@ export default function MarkAttendance() {
       setMessage({ tone: "success", text: "Attendance marked." });
     } catch (err) {
       if (err.response?.status === 403) {
-        setMessage({ tone: "error", text: "You are not the primary staff for this subject." });
+        setMessage({ tone: "error", text: "You are not assigned to this subject and section." });
       } else {
         setMessage({ tone: "error", text: extractErrorMessage(err, "Could not mark attendance.") });
       }
@@ -167,9 +153,9 @@ export default function MarkAttendance() {
 
       <UpcomingCalendar />
 
-      {ownedSubjects.length === 0 ? (
+      {assignedSubjects.length === 0 ? (
         <p className="text-sm text-slate">
-          You are not the primary staff for any subject, so there is nothing to mark attendance for.
+          You do not have any assigned subjects or sections to mark attendance for.
         </p>
       ) : (
         <form onSubmit={handleSubmit} className="flex flex-col gap-8">
@@ -185,9 +171,9 @@ export default function MarkAttendance() {
                 <option value="" disabled>
                   Select a subject
                 </option>
-                {ownedSubjects.map((subject) => (
-                  <option key={subject.id} value={subject.id}>
-                    {subject.name}
+                {assignedSubjects.map((subject) => (
+                  <option key={subject.subjectId} value={subject.subjectId}>
+                    {subject.subjectName} ({subject.type})
                   </option>
                 ))}
               </select>
@@ -207,7 +193,7 @@ export default function MarkAttendance() {
                 </option>
                 {availableSections.map((section) => (
                   <option key={section.id} value={section.id}>
-                    {section.name}
+                    Section {section.name}
                   </option>
                 ))}
               </select>

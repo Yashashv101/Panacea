@@ -141,6 +141,14 @@ export default function StaffAssignment() {
     }
   }
 
+  const filteredStaff = staff.filter((member) => {
+    if (!selectedSubject || !selectedSubject.courseIds || selectedSubject.courseIds.length === 0) {
+      return true;
+    }
+    if (!member.staffCourseId) return true;
+    return selectedSubject.courseIds.includes(member.staffCourseId);
+  });
+
   return (
     <div>
       <div className="mb-6 border-b border-brass/20 pb-4">
@@ -170,6 +178,7 @@ export default function StaffAssignment() {
                       onChange={(e) => {
                         setSelectedSubjectId(e.target.value);
                         setSelectedSectionIds(new Set());
+                        setSelectedStaffId("");
                       }}
                       className={inputClass}
                     >
@@ -193,11 +202,11 @@ export default function StaffAssignment() {
                       className={inputClass}
                     >
                       <option value="" disabled>
-                        Select a staff member
+                        {filteredStaff.length === 0 ? "No staff in this department" : "Select a staff member"}
                       </option>
-                      {staff.map((member) => (
+                      {filteredStaff.map((member) => (
                         <option key={member.id} value={member.id}>
-                          {member.firstName} {member.lastName} ({member.email})
+                          {member.firstName} {member.lastName} {member.staffCourseName ? `(${member.staffCourseName})` : `(${member.email})`}
                         </option>
                       ))}
                     </select>

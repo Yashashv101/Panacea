@@ -142,14 +142,16 @@ public class FullResetSeeder implements CommandLineRunner {
         Session session = seedSession();
         Semester semester = seedSemester(session);
         Map<String, Course> coursesByCode = seedCourses();
+        seedHods(coursesByCode);
         Map<String, List<SectionResponse>> sectionsByCourseCode = seedSections(coursesByCode);
-        List<User> staff = seedStaff(coursesByCode);
-        int subjectCount = seedSubjects(coursesByCode, sectionsByCourseCode, semester, staff);
+        Map<String, List<User>> staffByCourse = seedStaff(coursesByCode);
+        int subjectCount = seedSubjects(coursesByCode, sectionsByCourseCode, semester, staffByCourse);
         StudentSeedResult students = seedStudents(coursesByCode, sectionsByCourseCode, semester);
         List<FeeStructureResponse> feeStructures = seedFeeStructures(coursesByCode, semester);
         int paidCount = seedFeePayments(students.all(), feeStructures);
 
-        report(session, semester, coursesByCode.size(), sectionsByCourseCode, staff.size(), subjectCount,
+        int totalStaffCount = staffByCourse.values().stream().mapToInt(List::size).sum();
+        report(session, semester, coursesByCode.size(), sectionsByCourseCode, totalStaffCount, subjectCount,
                 students.all().size(), feeStructures.size(), paidCount, students.unpaid());
     }
 
@@ -183,6 +185,16 @@ public class FullResetSeeder implements CommandLineRunner {
         return byCode;
     }
 
+    private void seedHods(Map<String, Course> coursesByCode) {
+        for (Map.Entry<String, Course> entry : coursesByCode.entrySet()) {
+            String code = entry.getKey();
+            Course course = entry.getValue();
+            userService.createUser(new CreateUserRequest(
+                    ("hod." + code + "@panacea.edu").toLowerCase(), SEEDED_PASSWORD, "HOD", code,
+                    Role.HOD, course.getId(), null, null));
+        }
+    }
+
     private Map<String, List<SectionResponse>> seedSections(Map<String, Course> coursesByCode) {
         Map<String, List<SectionResponse>> byCourseCode = new LinkedHashMap<>();
         String[] names = {"A", "B", "C", "D"};
@@ -197,89 +209,133 @@ public class FullResetSeeder implements CommandLineRunner {
         return byCourseCode;
     }
 
-    private List<User> seedStaff(Map<String, Course> coursesByCode) {
-        List<User> staff = new ArrayList<>();
-        List<Course> courses = new ArrayList<>(coursesByCode.values());
-        for (int i = 1; i <= STAFF_COUNT; i++) {
-            Course course = courses.get((i - 1) % courses.size());
-            staff.add(userService.createUser(new CreateUserRequest(
-                    "staff" + i + "@panacea.edu", SEEDED_PASSWORD, "Staff", "Member" + i,
-                    Role.STAFF, course.getId(), null, null)));
+    private Map<String, List<User>> seedStaff(Map<String, Course> coursesByCode) {
+        Map<String, List<User>> staffByCourse = new LinkedHashMap<>();
+        int globalIndex = 1;
+
+        // CSE: 4 staff (staff1 .. staff4)
+        Course cse = coursesByCode.get("CSE");
+        List<User> cseStaff = new ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            cseStaff.add(userService.createUser(new CreateUserRequest(
+                    "staff" + globalIndex + "@panacea.edu", SEEDED_PASSWORD, "Staff", "Member" + globalIndex,
+                    Role.STAFF, cse.getId(), null, null)));
+            globalIndex++;
         }
-        return staff;
+        staffByCourse.put("CSE", cseStaff);
+
+        // ISE: 4 staff (staff5 .. staff8)
+        Course ise = coursesByCode.get("ISE");
+        List<User> iseStaff = new ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            iseStaff.add(userService.createUser(new CreateUserRequest(
+                    "staff" + globalIndex + "@panacea.edu", SEEDED_PASSWORD, "Staff", "Member" + globalIndex,
+                    Role.STAFF, ise.getId(), null, null)));
+            globalIndex++;
+        }
+        staffByCourse.put("ISE", iseStaff);
+
+        // AIML: 3 staff (staff9 .. staff11)
+        Course aiml = coursesByCode.get("AIML");
+        List<User> aimlStaff = new ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            aimlStaff.add(userService.createUser(new CreateUserRequest(
+                    "staff" + globalIndex + "@panacea.edu", SEEDED_PASSWORD, "Staff", "Member" + globalIndex,
+                    Role.STAFF, aiml.getId(), null, null)));
+            globalIndex++;
+        }
+        staffByCourse.put("AIML", aimlStaff);
+
+        return staffByCourse;
     }
 
     private int seedSubjects(Map<String, Course> coursesByCode, Map<String, List<SectionResponse>> sectionsByCourseCode,
-                              Semester semester, List<User> staff) {
-        int index = 0;
+                              Semester semester, Map<String, List<User>> staffByCourse) {
         for (SubjectSpec spec : SUBJECT_SPECS) {
             Course course = coursesByCode.get(spec.courseCode());
             List<SectionResponse> secList = sectionsByCourseCode.get(spec.courseCode());
+            List<User> deptStaff = staffByCourse.get(spec.courseCode());
             Set<Long> sectionIds = secList.stream()
                     .map(SectionResponse::id)
                     .collect(java.util.stream.Collectors.toSet());
-            User primaryStaff = staff.get(index % staff.size());
+
+            User primaryStaff = deptStaff.get(0);
+            if ("Parallel Computing".equals(spec.name()) || "Total Quality Management".equals(spec.name())) {
+                primaryStaff = deptStaff.get(0);
+            } else if ("CNS".equals(spec.name()) || "NoSQL".equals(spec.name())) {
+                primaryStaff = deptStaff.get(2);
+            } else if ("Software Testing and QA".equals(spec.name()) || "Big Data Analytics".equals(spec.name())) {
+                primaryStaff = deptStaff.get(0);
+            } else if ("Distributed File System".equals(spec.name()) || "Electric Vehicles".equals(spec.name())) {
+                primaryStaff = deptStaff.get(2);
+            } else if ("Computer Network".equals(spec.name()) || "Project Management".equals(spec.name())) {
+                primaryStaff = deptStaff.get(0);
+            } else if ("Compiler Design".equals(spec.name())) {
+                primaryStaff = deptStaff.get(1);
+            } else if ("Machine Learning".equals(spec.name())) {
+                primaryStaff = deptStaff.get(2);
+            }
 
             var subject = subjectService.create(new SubjectRequest(
                     spec.name(), spec.credits(), spec.type(), primaryStaff.getId(), semester.getId(),
                     Set.of(course.getId()), sectionIds));
 
-            seedStaffAssignmentsForSubject(subject.id(), secList, staff, spec.name());
-            index++;
+            seedStaffAssignmentsForSubject(subject.id(), secList, deptStaff, spec.name());
         }
         return SUBJECT_SPECS.size();
     }
 
-    private void seedStaffAssignmentsForSubject(Long subjectId, List<SectionResponse> sections, List<User> staff, String name) {
+    private void seedStaffAssignmentsForSubject(Long subjectId, List<SectionResponse> sections, List<User> deptStaff, String name) {
         if (sections.size() == 4) {
-            if ("Parallel Computing".equals(name) || "Software Testing and QA".equals(name) || "NoSQL".equals(name) || "Electric Vehicles".equals(name)) {
+            if ("Parallel Computing".equals(name) || "Software Testing and QA".equals(name)) {
                 // 2 staff across 4 sections (2 + 2)
-                User staffA = staff.get(0);
-                User staffB = staff.get(1);
-                if ("Software Testing and QA".equals(name)) {
-                    staffA = staff.get(1);
-                    staffB = staff.get(2);
-                } else if ("NoSQL".equals(name)) {
-                    staffA = staff.get(3);
-                    staffB = staff.get(4);
-                } else if ("Electric Vehicles".equals(name)) {
-                    staffA = staff.get(2);
-                    staffB = staff.get(0);
-                }
+                User staffA = deptStaff.get(0);
+                User staffB = deptStaff.get(1);
                 assign(subjectId, staffA.getId(), Set.of(sections.get(0).id(), sections.get(1).id()));
                 assign(subjectId, staffB.getId(), Set.of(sections.get(2).id(), sections.get(3).id()));
             } else if ("CNS".equals(name) || "Distributed File System".equals(name)) {
                 // 1 staff covering all 4 sections
-                User staffAll = "CNS".equals(name) ? staff.get(0) : staff.get(3);
+                User staffAll = deptStaff.get(2);
                 assign(subjectId, staffAll.getId(), Set.of(sections.get(0).id(), sections.get(1).id(), sections.get(2).id(), sections.get(3).id()));
-            } else {
+            } else if ("Total Quality Management".equals(name) || "Big Data Analytics".equals(name)) {
                 // 3 staff across 4 sections (2 + 1 + 1)
-                User staffA = staff.get(2);
-                User staffB = staff.get(3);
-                User staffC = staff.get(4);
-                if ("Big Data Analytics".equals(name)) {
-                    staffA = staff.get(0);
-                    staffB = staff.get(1);
-                    staffC = staff.get(4);
-                }
+                User staffA = deptStaff.get(0);
+                User staffB = deptStaff.get(1);
+                User staffC = deptStaff.get(3);
                 assign(subjectId, staffA.getId(), Set.of(sections.get(0).id(), sections.get(1).id()));
                 assign(subjectId, staffB.getId(), Set.of(sections.get(2).id()));
                 assign(subjectId, staffC.getId(), Set.of(sections.get(3).id()));
+            } else if ("NoSQL".equals(name) || "Electric Vehicles".equals(name)) {
+                // 2 staff across 4 sections (2 + 2)
+                User staffA = deptStaff.get(2);
+                User staffB = deptStaff.get(3);
+                assign(subjectId, staffA.getId(), Set.of(sections.get(0).id(), sections.get(1).id()));
+                assign(subjectId, staffB.getId(), Set.of(sections.get(2).id(), sections.get(3).id()));
             }
         } else if (sections.size() == 2) {
-            if ("Computer Network".equals(name) || "Project Management".equals(name)) {
+            if ("Computer Network".equals(name)) {
                 // 2 staff across 2 sections (1 + 1)
-                User staffA = "Computer Network".equals(name) ? staff.get(0) : staff.get(3);
-                User staffB = "Computer Network".equals(name) ? staff.get(1) : staff.get(4);
+                User staffA = deptStaff.get(0);
+                User staffB = deptStaff.get(1);
                 assign(subjectId, staffA.getId(), Set.of(sections.get(0).id()));
                 assign(subjectId, staffB.getId(), Set.of(sections.get(1).id()));
-            } else {
+            } else if ("Machine Learning".equals(name)) {
                 // 1 staff covering both sections
-                User staffAll = "Machine Learning".equals(name) ? staff.get(2) : staff.get(1);
+                User staffAll = deptStaff.get(2);
+                assign(subjectId, staffAll.getId(), Set.of(sections.get(0).id(), sections.get(1).id()));
+            } else if ("Project Management".equals(name)) {
+                // 2 staff across 2 sections (1 + 1)
+                User staffA = deptStaff.get(0);
+                User staffB = deptStaff.get(2);
+                assign(subjectId, staffA.getId(), Set.of(sections.get(0).id()));
+                assign(subjectId, staffB.getId(), Set.of(sections.get(1).id()));
+            } else if ("Compiler Design".equals(name)) {
+                // 1 staff covering both sections
+                User staffAll = deptStaff.get(1);
                 assign(subjectId, staffAll.getId(), Set.of(sections.get(0).id(), sections.get(1).id()));
             }
         } else {
-            assign(subjectId, staff.get(0).getId(), sections.stream().map(SectionResponse::id).collect(java.util.stream.Collectors.toSet()));
+            assign(subjectId, deptStaff.get(0).getId(), sections.stream().map(SectionResponse::id).collect(java.util.stream.Collectors.toSet()));
         }
     }
 

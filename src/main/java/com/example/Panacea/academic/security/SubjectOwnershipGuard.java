@@ -35,4 +35,19 @@ public class SubjectOwnershipGuard {
             }
         }
     }
+
+    public void requireOwnership(User actor, Subject subject, Long sectionId) {
+        if (actor.getRole() == Role.STAFF) {
+            if (sectionId != null) {
+                var assignmentOpt = assignmentRepository.findBySubjectIdAndSectionId(subject.getId(), sectionId);
+                if (assignmentOpt.isPresent()) {
+                    if (!assignmentOpt.get().getStaff().getId().equals(actor.getId())) {
+                        throw new AccessDeniedException("You are not assigned to teach this section for this subject");
+                    }
+                    return;
+                }
+            }
+            requireOwnership(actor, subject);
+        }
+    }
 }

@@ -8,7 +8,7 @@ const EMPTY_COMPONENTS = { test1: "", test2: "", experiential: "", see: "" };
 export default function EnterResults() {
   const { userId } = useAuth();
 
-  const [subjects, setSubjects] = useState([]);
+  const [assignedSubjects, setAssignedSubjects] = useState([]);
   const [semesters, setSemesters] = useState([]);
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -32,12 +32,12 @@ export default function EnterResults() {
       setLoading(true);
       setLoadError(null);
       try {
-        const [subjectsRes, semestersRes] = await Promise.all([
-          apiClient.get("/subjects"),
+        const [assignmentsRes, semestersRes] = await Promise.all([
+          apiClient.get("/academic/staff-assignments/me"),
           apiClient.get("/semesters"),
         ]);
         if (cancelled) return;
-        setSubjects(subjectsRes.data);
+        setAssignedSubjects(assignmentsRes.data);
         setSemesters(semestersRes.data);
       } catch {
         if (!cancelled) setLoadError("Could not load results data.");
@@ -52,26 +52,20 @@ export default function EnterResults() {
     };
   }, []);
 
-  const ownedSubjects = useMemo(
-    () => subjects.filter((subject) => subject.primaryStaffId === userId),
-    [subjects, userId]
-  );
-
-  const selectedSubject = ownedSubjects.find((subject) => subject.id === Number(subjectId));
+  const selectedSubject = assignedSubjects.find((s) => s.subjectId === Number(subjectId));
 
   function handleSubjectChange(value) {
     setSubjectId(value);
-    const subject = ownedSubjects.find((s) => s.id === Number(value));
-    setSemesterId(subject ? String(subject.semesterId) : "");
+    const subject = assignedSubjects.find((s) => s.subjectId === Number(value));
+    setSemesterId(subject?.semesterId ? String(subject.semesterId) : "");
     setStudentId("");
   }
 
-  // The roster depends on the selected subject's section(s) — a subject can be
-  // taught to more than one section, so fetch each and merge, deduplicating by id.
+  // The roster depends on the selected subject's assigned section(s)
   useEffect(() => {
     let cancelled = false;
 
-    if (!selectedSubject || selectedSubject.sectionIds.length === 0) {
+    if (!selectedSubject || !selectedSubject.sections || selectedSubject.sections.length === 0) {
       setStudents([]);
       return () => {
         cancelled = true;
@@ -79,8 +73,8 @@ export default function EnterResults() {
     }
 
     Promise.all(
-      selectedSubject.sectionIds.map((sectionId) =>
-        apiClient.get("/students", { params: { sectionId } }).then((res) => res.data)
+      selectedSubject.sections.map((section) =>
+        apiClient.get("/students", { params: { sectionId: section.id } }).then((res) => res.data)
       )
     )
       .then((rosters) => {
@@ -213,9 +207,9 @@ export default function EnterResults() {
         <h1 className="font-display text-2xl font-semibold text-ink">Enter Results</h1>
       </div>
 
-      {ownedSubjects.length === 0 ? (
+      {assignedSubjects.length === 0 ? (
         <p className="text-sm text-slate">
-          You are not the primary staff for any subject, so there is nothing to enter results for.
+          You do not have any assigned subjects to enter results for.
         </p>
       ) : (
         <form onSubmit={handleSubmit} className="flex max-w-2xl flex-col gap-8">
@@ -231,9 +225,9 @@ export default function EnterResults() {
                 <option value="" disabled>
                   Select a subject
                 </option>
-                {ownedSubjects.map((subject) => (
-                  <option key={subject.id} value={subject.id}>
-                    {subject.name}
+                {assignedSubjects.map((subject) => (
+                  <option key={subject.subjectId} value={subject.subjectId}>
+                    {subject.subjectName} ({subject.type})
                   </option>
                 ))}
               </select>

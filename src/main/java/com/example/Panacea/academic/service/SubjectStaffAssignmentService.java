@@ -64,6 +64,16 @@ public class SubjectStaffAssignmentService {
             throw new IllegalArgumentException("User " + request.staffId() + " is not a staff member");
         }
 
+        if (staff.getStaffCourse() != null && !subject.getCourses().isEmpty()) {
+            boolean matches = subject.getCourses().stream()
+                    .anyMatch(c -> c.getId().equals(staff.getStaffCourse().getId()));
+            if (!matches) {
+                throw new IllegalArgumentException("Staff member " + staff.getFirstName() + " " + staff.getLastName() +
+                        " belongs to department " + staff.getStaffCourse().getName() +
+                        " and cannot be assigned to subject " + subject.getName());
+            }
+        }
+
         List<SubjectStaffAssignmentResponse> results = new ArrayList<>();
 
         for (Long sectionId : request.sectionIds()) {

@@ -64,7 +64,7 @@ public class AttendanceService {
         User staff = userRepository.findById(staffId)
                 .orElseThrow(() -> new EntityNotFoundException("Staff " + staffId + " not found"));
 
-        subjectOwnershipGuard.requireOwnership(staff, subject);
+        subjectOwnershipGuard.requireOwnership(staff, subject, section.getId());
 
         Attendance attendance = attendanceRepository.save(Attendance.builder()
                 .subject(subject)

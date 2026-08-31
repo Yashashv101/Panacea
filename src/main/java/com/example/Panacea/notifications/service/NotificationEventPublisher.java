@@ -24,6 +24,10 @@ public class NotificationEventPublisher {
     private String routingKey;
 
     public void publish(Long recipientId, String message) {
-        rabbitTemplate.convertAndSend(exchangeName, routingKey, new NotificationEvent(recipientId, message));
+        publish(recipientId, message, "GENERAL");
+    }
+
+    public void publish(Long recipientId, String message, String type) {
+        rabbitTemplate.convertAndSend(exchangeName, routingKey, new NotificationEvent(recipientId, message, type));
     }
 }

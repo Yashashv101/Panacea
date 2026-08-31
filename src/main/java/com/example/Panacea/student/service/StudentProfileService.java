@@ -10,6 +10,8 @@ import com.example.Panacea.academic.repository.SectionRepository;
 import com.example.Panacea.academic.repository.SemesterRepository;
 import com.example.Panacea.academic.entity.Subject;
 import com.example.Panacea.academic.repository.SubjectRepository;
+import com.example.Panacea.attendance.repository.AttendanceReportRepository;
+import com.example.Panacea.enrollment.entity.ElectiveEnrollmentRequest;
 import com.example.Panacea.enrollment.entity.EnrollmentStatus;
 import com.example.Panacea.enrollment.repository.ElectiveEnrollmentRequestRepository;
 import com.example.Panacea.identity.dto.UserResponse;
@@ -18,6 +20,10 @@ import com.example.Panacea.identity.entity.User;
 import com.example.Panacea.identity.repository.UserRepository;
 import com.example.Panacea.identity.security.HodScopeResolver;
 import com.example.Panacea.identity.security.UserPrincipal;
+import com.example.Panacea.results.entity.StudentResult;
+import com.example.Panacea.results.repository.StudentResultRepository;
+import com.example.Panacea.student.dto.AtRiskReason;
+import com.example.Panacea.student.dto.AtRiskStudentResponse;
 import com.example.Panacea.student.dto.StudentLookupResponse;
 import com.example.Panacea.student.entity.StudentProfile;
 import com.example.Panacea.student.repository.StudentProfileRepository;
@@ -28,6 +34,8 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,8 +51,11 @@ public class StudentProfileService {
     private final SemesterRepository semesterRepository;
     private final SubjectRepository subjectRepository;
     private final ElectiveEnrollmentRequestRepository electiveEnrollmentRequestRepository;
+    private final AttendanceReportRepository attendanceReportRepository;
+    private final StudentResultRepository studentResultRepository;
     private final UserRepository userRepository;
     private final HodScopeResolver hodScopeResolver;
+
 
     /**
      * The server-side lookup call sites use to resolve an authenticated
@@ -267,4 +278,99 @@ public class StudentProfileService {
         requireSubjectAccessible(studentUserId, subjectId);
         return SubjectResponse.from(subject);
     }
+
+    /**
+     * The HOD/ADMIN/STAFF endpoint for retrieving all enrolled subjects (core + approved electives)
+     * for a given student ID. HOD callers are scoped to their own department (403 if student's course
+     * does not match HOD's hodCourse).
+     */
+    @Transactional(readOnly = true)
+    public List<SubjectResponse> findSubjectsForStudent(Long studentId, UserPrincipal principal) {
+        StudentProfile profile = getByUserId(studentId);
+        hodScopeResolver.requireCourseAccess(principal, profile.getCourse().getId());
+        return findMySubjects(studentId);
+    }
+
+    /**
+     * Computes the at-risk student list for the acting HOD's department.
+     * Evaluates every student enrolled in the HOD's course across all their subjects
+     * (core + approved electives) for two independent conditions:
+     * 1. Attendance < 75% for that subject (evaluated only when sessions have been recorded)
+     * 2. CIE Marks (test1 + test2) < 20 / 50 (evaluated only if a StudentResult row exists)
+     */
+    @Transactional(readOnly = true)
+    public List<AtRiskStudentResponse> findAtRiskStudents(UserPrincipal principal) {
+        Course course = hodScopeResolver.resolveScopeCourse(principal);
+        if (course == null) {
+            throw new AccessDeniedException("You are not scoped as an HOD to any course");
+        }
+
+        List<StudentProfile> profiles = studentProfileRepository.findByCourseId(course.getId());
+        List<AtRiskStudentResponse> atRiskStudents = new ArrayList<>();
+
+        // Cache core subjects by semesterId to avoid redundant queries across students in the same semester
+        Map<Long, List<Subject>> coreSubjectsBySemester = new HashMap<>();
+
+        for (StudentProfile profile : profiles) {
+            User student = profile.getUser();
+            Long semesterId = profile.getSemester().getId();
+
+            List<Subject> coreSubjects = coreSubjectsBySemester.computeIfAbsent(semesterId, semId ->
+                    subjectRepository.findByCoursesIdAndSemesterIdAndType(course.getId(), semId, SubjectType.CORE));
+
+            List<Subject> approvedElectives = electiveEnrollmentRequestRepository
+                    .findByStudentIdAndStatus(student.getId(), EnrollmentStatus.APPROVED)
+                    .stream()
+                    .map(ElectiveEnrollmentRequest::getSubject)
+                    .toList();
+
+            Map<Long, Subject> enrolledSubjects = new LinkedHashMap<>();
+            coreSubjects.forEach(s -> enrolledSubjects.put(s.getId(), s));
+            approvedElectives.forEach(s -> enrolledSubjects.putIfAbsent(s.getId(), s));
+
+            List<AtRiskReason> reasons = new ArrayList<>();
+
+            for (Subject subject : enrolledSubjects.values()) {
+                // 1. Attendance condition: < 75% (evaluated only when sessions exist)
+                long totalSessions = attendanceReportRepository.countByStudentIdAndSubjectId(student.getId(), subject.getId());
+                if (totalSessions > 0) {
+                    long presentSessions = attendanceReportRepository.countPresentByStudentIdAndSubjectId(student.getId(), subject.getId());
+                    double percentage = (presentSessions * 100.0) / totalSessions;
+                    if (percentage < 75.0) {
+                        reasons.add(AtRiskReason.attendance(subject.getId(), subject.getName(), percentage, totalSessions, presentSessions));
+                    }
+                }
+
+                // 2. Marks condition: test1 + test2 < 20 / 50 (evaluated only if StudentResult exists)
+                Optional<StudentResult> resultOpt = studentResultRepository
+                        .findByStudentIdAndSubjectIdAndSemesterId(student.getId(), subject.getId(), semesterId);
+                if (resultOpt.isPresent()) {
+                    StudentResult result = resultOpt.get();
+                    if (result.getTest1() != null && result.getTest2() != null) {
+                        double marksTotal = result.getTest1() + result.getTest2();
+                        if (marksTotal < 20.0) {
+                            reasons.add(AtRiskReason.marks(subject.getId(), subject.getName(), result.getTest1(), result.getTest2()));
+                        }
+                    }
+                }
+            }
+
+            if (!reasons.isEmpty()) {
+                atRiskStudents.add(new AtRiskStudentResponse(
+                        student.getId(),
+                        student.getFirstName() + " " + student.getLastName(),
+                        student.getEmail(),
+                        profile.getCourse().getName(),
+                        profile.getSection().getName(),
+                        profile.getSemester().getId(),
+                        profile.getSemester().getLabel(),
+                        reasons
+                ));
+            }
+        }
+
+        return atRiskStudents;
+    }
 }
+
+

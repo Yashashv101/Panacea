@@ -3,6 +3,7 @@ package com.example.Panacea.student.controller;
 import com.example.Panacea.academic.dto.SubjectResponse;
 import com.example.Panacea.identity.dto.UserResponse;
 import com.example.Panacea.identity.security.UserPrincipal;
+import com.example.Panacea.student.dto.AtRiskStudentResponse;
 import com.example.Panacea.student.dto.StudentLookupResponse;
 import com.example.Panacea.student.service.StudentProfileService;
 import com.example.Panacea.timetable.dto.TimetableEntryResponse;
@@ -84,4 +85,27 @@ public class StudentProfileController {
     public List<TimetableEntryResponse> myTimetable(@AuthenticationPrincipal UserPrincipal principal) {
         return timetableService.findMyTimetable(principal.getId());
     }
+
+    /**
+     * The HOD/ADMIN/STAFF endpoint for retrieving all enrolled subjects for a specific student.
+     * Scoped to the caller's department if caller is an HOD.
+     */
+    @GetMapping("/{id}/subjects")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HOD', 'STAFF')")
+    public List<SubjectResponse> findSubjectsByStudentId(@PathVariable Long id,
+                                                         @AuthenticationPrincipal UserPrincipal principal) {
+        return studentProfileService.findSubjectsForStudent(id, principal);
+    }
+
+    /**
+     * The HOD-only endpoint for retrieving all students in their department who are
+     * flagged at-risk (attendance < 75% or test1 + test2 < 20/50 across any enrolled subjects).
+     */
+    @GetMapping("/at-risk")
+    @PreAuthorize("hasRole('HOD')")
+    public List<AtRiskStudentResponse> findAtRiskStudents(@AuthenticationPrincipal UserPrincipal principal) {
+        return studentProfileService.findAtRiskStudents(principal);
+    }
 }
+
+

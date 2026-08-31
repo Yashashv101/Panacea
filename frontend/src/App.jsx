@@ -16,6 +16,7 @@ import FeedbackQueue from "./pages/admin/FeedbackQueue";
 import ProctorAssignment from "./pages/admin/ProctorAssignment";
 import MarkAttendance from "./pages/staff/MarkAttendance.jsx";
 import EnterResults from "./pages/staff/EnterResults.jsx";
+import CourseMaterials from "./pages/staff/CourseMaterials.jsx";
 import CreateQuiz from "./pages/staff/CreateQuiz.jsx";
 import QuizResults from "./pages/staff/QuizResults.jsx";
 import TakeQuiz from "./pages/student/TakeQuiz.jsx";
@@ -33,6 +34,8 @@ import HodSubjects from "./pages/hod/HodSubjects.jsx";
 import HodSubjectDetail from "./pages/hod/HodSubjectDetail.jsx";
 import HodFaculty from "./pages/hod/HodFaculty.jsx";
 import StudentLookup from "./pages/hod/StudentLookup.jsx";
+import AtRisk from "./pages/hod/AtRisk.jsx";
+import AnnouncementForm from "./pages/hod/AnnouncementForm.jsx";
 
 function RootRoute() {
   const { role } = useAuth();
@@ -102,10 +105,26 @@ export default function App() {
             }
           />
           <Route
+            path="/hod/announcements"
+            element={
+              <ProtectedRoute allowedRoles={["HOD"]}>
+                <AnnouncementForm />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/hod/students"
             element={
               <ProtectedRoute allowedRoles={["HOD"]}>
                 <StudentLookup />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/hod/at-risk"
+            element={
+              <ProtectedRoute allowedRoles={["HOD"]}>
+                <AtRisk />
               </ProtectedRoute>
             }
           />
@@ -205,6 +224,14 @@ export default function App() {
             element={
               <ProtectedRoute allowedRoles={["STAFF"]}>
                 <EnterResults />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/staff/materials"
+            element={
+              <ProtectedRoute allowedRoles={["STAFF"]}>
+                <CourseMaterials />
               </ProtectedRoute>
             }
           />

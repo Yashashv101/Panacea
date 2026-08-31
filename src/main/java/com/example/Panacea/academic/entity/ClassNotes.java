@@ -1,4 +1,4 @@
-package com.example.Panacea.notifications.entity;
+package com.example.Panacea.academic.entity;
 
 import com.example.Panacea.identity.entity.User;
 import jakarta.persistence.Column;
@@ -19,34 +19,35 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
 
-/**
- * One row per recipient — created by {@code NotificationEventListener} when it
- * consumes a {@code NotificationEvent} off the queue, not synchronously by whatever
- * triggered the event.
- */
 @Entity
-@Table(name = "notifications")
+@Table(name = "class_notes")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Notification {
+public class ClassNotes {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "recipient_id", nullable = false)
-    private User recipient;
+    @JoinColumn(name = "subject_id", nullable = false)
+    private Subject subject;
 
-    @Column(nullable = false, length = 1000)
-    private String message;
+    @Column(nullable = false, length = 200)
+    private String title;
 
-    @Column(name = "type", length = 50)
-    @Builder.Default
-    private String type = "GENERAL";
+    @Column(length = 1000)
+    private String description;
+
+    @Column(name = "file_path", nullable = false)
+    private String filePath;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "uploaded_by_id", nullable = false)
+    private User uploadedBy;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

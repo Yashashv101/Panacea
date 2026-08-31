@@ -32,6 +32,7 @@ public class NotificationEventListener {
         notificationRepository.save(Notification.builder()
                 .recipient(recipient)
                 .message(event.message())
+                .type(event.type() != null ? event.type() : "GENERAL")
                 .build());
     }
 }

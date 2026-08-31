@@ -7,5 +7,8 @@ import java.io.Serializable;
  * notified about. The listener is what actually fans this out into a
  * {@code Notification} row — publishing this event does not touch the database.
  */
-public record NotificationEvent(Long recipientId, String message) implements Serializable {
+public record NotificationEvent(Long recipientId, String message, String type) implements Serializable {
+    public NotificationEvent(Long recipientId, String message) {
+        this(recipientId, message, "GENERAL");
+    }
 }

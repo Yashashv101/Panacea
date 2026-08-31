@@ -17,7 +17,14 @@ public record SubjectResponse(
         String primaryStaffName,
         Long semesterId,
         Set<Long> courseIds,
-        Set<Long> sectionIds
+        Set<Long> sectionIds,
+        /**
+         * True if a syllabus PDF has been uploaded for this subject.
+         * The actual file path is deliberately not exposed in this DTO —
+         * downloads go through GET /api/subjects/{id}/syllabus, which
+         * enforces per-role access checks before streaming the file.
+         */
+        boolean syllabusUploaded
 ) {
     public static SubjectResponse from(Subject subject) {
         return new SubjectResponse(
@@ -31,6 +38,7 @@ public record SubjectResponse(
                         : null,
                 subject.getSemester().getId(),
                 subject.getCourses().stream().map(Course::getId).collect(Collectors.toSet()),
-                subject.getSections().stream().map(Section::getId).collect(Collectors.toSet()));
+                subject.getSections().stream().map(Section::getId).collect(Collectors.toSet()),
+                subject.getSyllabusPath() != null);
     }
 }

@@ -5,6 +5,7 @@ import SessionsSection from "./academic/SessionsSection";
 import SemestersSection from "./academic/SemestersSection";
 import SectionsSection from "./academic/SectionsSection";
 import SubjectsSection from "./academic/SubjectsSection";
+import SyllabusSection from "./academic/SyllabusSection";
 
 export default function AcademicStructure() {
   const [courses, setCourses] = useState([]);
@@ -72,6 +73,11 @@ export default function AcademicStructure() {
             courses={courses}
             sections={sections}
             staff={staff}
+          />
+          <SyllabusSection
+            subjects={subjects}
+            setSubjects={setSubjects}
+            courses={courses}
           />
         </>
       )}

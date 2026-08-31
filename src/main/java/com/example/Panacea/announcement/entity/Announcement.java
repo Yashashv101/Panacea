@@ -1,8 +1,11 @@
-package com.example.Panacea.notifications.entity;
+package com.example.Panacea.announcement.entity;
 
+import com.example.Panacea.academic.entity.Course;
 import com.example.Panacea.identity.entity.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -19,34 +22,33 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
 
-/**
- * One row per recipient — created by {@code NotificationEventListener} when it
- * consumes a {@code NotificationEvent} off the queue, not synchronously by whatever
- * triggered the event.
- */
 @Entity
-@Table(name = "notifications")
+@Table(name = "announcements")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Notification {
+public class Announcement {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "recipient_id", nullable = false)
-    private User recipient;
+    @JoinColumn(name = "author_id", nullable = false)
+    private User author;
 
-    @Column(nullable = false, length = 1000)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "course_id", nullable = false)
+    private Course course;
+
+    @Column(nullable = false, length = 2000)
     private String message;
 
-    @Column(name = "type", length = 50)
-    @Builder.Default
-    private String type = "GENERAL";
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private AnnouncementAudience audience;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

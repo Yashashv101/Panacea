@@ -83,4 +83,13 @@ public class Subject {
             inverseJoinColumns = @JoinColumn(name = "section_id"))
     @Builder.Default
     private Set<Section> sections = new HashSet<>();
+
+    /**
+     * Relative path to an uploaded syllabus PDF on the server's local filesystem,
+     * e.g. "uploads/syllabi/42_a3f0c2d1-...pdf". Not a web-accessible URL — served
+     * only through GET /api/subjects/{id}/syllabus, which enforces per-role access
+     * checks before streaming the file. Null means no syllabus has been uploaded yet.
+     */
+    @Column(name = "syllabus_path")
+    private String syllabusPath;
 }

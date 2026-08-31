@@ -13,6 +13,7 @@ const STUDENT_NAV_ITEMS = [
 const STAFF_NAV_ITEMS = [
   { to: "/staff/attendance", label: "Mark Attendance" },
   { to: "/staff/results", label: "Enter Results" },
+  { to: "/staff/materials", label: "Course Materials" },
   { to: "/staff/mentees", label: "My Mentees" },
   { to: "/staff/electives", label: "Elective Requests" },
   { to: "/staff/exam-duty", label: "My Exam Duty" },
@@ -28,8 +29,10 @@ const STAFF_QUIZ_NAV_ITEMS = [
 
 const HOD_NAV_ITEMS = [
   { to: "/hod", label: "Dashboard" },
+  { to: "/hod/announcements", label: "Announcements" },
   { to: "/hod/subjects", label: "Subjects" },
   { to: "/hod/faculty", label: "Faculty" },
+  { to: "/hod/at-risk", label: "At-Risk" },
   { to: "/hod/leave", label: "Leave Requests" },
   { to: "/hod/feedback", label: "Feedback" },
   { to: "/hod/proctor", label: "Proctor Assignment" },

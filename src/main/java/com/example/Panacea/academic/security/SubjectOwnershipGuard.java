@@ -1,8 +1,10 @@
 package com.example.Panacea.academic.security;
 
 import com.example.Panacea.academic.entity.Subject;
+import com.example.Panacea.academic.repository.SubjectStaffAssignmentRepository;
 import com.example.Panacea.identity.entity.Role;
 import com.example.Panacea.identity.entity.User;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Component;
 
@@ -12,18 +14,25 @@ import org.springframework.stereotype.Component;
  * both ResultService and QuizService (see CLAUDE.md's
  * cross-cutting-authorization-guards rule for why that changed).
  *
- * A STAFF actor must be the Subject's primaryStaff; every other role
+ * A STAFF actor must be an assigned staff member for the Subject (in
+ * SubjectStaffAssignment or as primaryStaff); every other role
  * (ADMIN, HOD, ...) is unrestricted here — HOD's own department-scoping is a
  * separate, additional check (see identity.security.HodScopeResolver), not
  * folded into this guard.
  */
 @Component
+@RequiredArgsConstructor
 public class SubjectOwnershipGuard {
 
+    private final SubjectStaffAssignmentRepository assignmentRepository;
+
     public void requireOwnership(User actor, Subject subject) {
-        if (actor.getRole() == Role.STAFF
-                && (subject.getPrimaryStaff() == null || !subject.getPrimaryStaff().getId().equals(actor.getId()))) {
-            throw new AccessDeniedException("You are not the primary staff for this subject");
+        if (actor.getRole() == Role.STAFF) {
+            boolean isPrimary = subject.getPrimaryStaff() != null && subject.getPrimaryStaff().getId().equals(actor.getId());
+            boolean isAssigned = assignmentRepository.existsBySubjectIdAndStaffId(subject.getId(), actor.getId());
+            if (!isPrimary && !isAssigned) {
+                throw new AccessDeniedException("You are not an assigned staff member for this subject");
+            }
         }
     }
 }

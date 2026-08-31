@@ -51,6 +51,7 @@ public class AttendanceService {
     private final CacheManager cacheManager;
     private final StudentProfileService studentProfileService;
     private final HodScopeResolver hodScopeResolver;
+    private final com.example.Panacea.academic.security.SubjectOwnershipGuard subjectOwnershipGuard;
 
     static final String PERCENTAGE_CACHE = "attendancePercentage";
 
@@ -63,10 +64,7 @@ public class AttendanceService {
         User staff = userRepository.findById(staffId)
                 .orElseThrow(() -> new EntityNotFoundException("Staff " + staffId + " not found"));
 
-        if (staff.getRole() == Role.STAFF
-                && (subject.getPrimaryStaff() == null || !subject.getPrimaryStaff().getId().equals(staffId))) {
-            throw new AccessDeniedException("You are not the primary staff for this subject");
-        }
+        subjectOwnershipGuard.requireOwnership(staff, subject);
 
         Attendance attendance = attendanceRepository.save(Attendance.builder()
                 .subject(subject)

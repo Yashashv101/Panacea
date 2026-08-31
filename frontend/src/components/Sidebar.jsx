@@ -11,6 +11,7 @@ const STUDENT_NAV_ITEMS = [
 ];
 
 const STAFF_NAV_ITEMS = [
+  { to: "/staff", label: "Dashboard" },
   { to: "/staff/attendance", label: "Mark Attendance" },
   { to: "/staff/results", label: "Enter Results" },
   { to: "/staff/materials", label: "Course Materials" },
@@ -31,6 +32,7 @@ const HOD_NAV_ITEMS = [
   { to: "/hod", label: "Dashboard" },
   { to: "/hod/announcements", label: "Announcements" },
   { to: "/hod/subjects", label: "Subjects" },
+  { to: "/admin/staff-assignments", label: "Staff Assignment" },
   { to: "/hod/faculty", label: "Faculty" },
   { to: "/hod/at-risk", label: "At-Risk" },
   { to: "/hod/leave", label: "Leave Requests" },
@@ -42,6 +44,7 @@ const HOD_NAV_ITEMS = [
 const ADMIN_NAV_ITEMS = [
   { to: "/admin/users", label: "Users" },
   { to: "/admin/academic-structure", label: "Academic Structure" },
+  { to: "/admin/staff-assignments", label: "Staff Assignment" },
   { to: "/admin/calendar", label: "Academic Calendar" },
   { to: "/admin/timetable", label: "Generate Timetable" },
   { to: "/admin/leave", label: "Leave Requests" },

@@ -4,6 +4,7 @@ import com.example.Panacea.academic.entity.Course;
 import com.example.Panacea.academic.entity.Section;
 import com.example.Panacea.academic.entity.Subject;
 import com.example.Panacea.academic.entity.SubjectType;
+import com.example.Panacea.identity.entity.User;
 
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -27,16 +28,21 @@ public record SubjectResponse(
         boolean syllabusUploaded
 ) {
     public static SubjectResponse from(Subject subject) {
+        return from(subject, subject.getPrimaryStaff());
+    }
+
+    public static SubjectResponse from(Subject subject, User assignedStaff) {
+        User effectiveStaff = assignedStaff != null ? assignedStaff : subject.getPrimaryStaff();
         return new SubjectResponse(
                 subject.getId(),
                 subject.getName(),
                 subject.getCredits(),
                 subject.getType(),
-                subject.getPrimaryStaff() != null ? subject.getPrimaryStaff().getId() : null,
-                subject.getPrimaryStaff() != null
-                        ? subject.getPrimaryStaff().getFirstName() + " " + subject.getPrimaryStaff().getLastName()
+                effectiveStaff != null ? effectiveStaff.getId() : null,
+                effectiveStaff != null
+                        ? effectiveStaff.getFirstName() + " " + effectiveStaff.getLastName()
                         : null,
-                subject.getSemester().getId(),
+                subject.getSemester() != null ? subject.getSemester().getId() : null,
                 subject.getCourses().stream().map(Course::getId).collect(Collectors.toSet()),
                 subject.getSections().stream().map(Section::getId).collect(Collectors.toSet()),
                 subject.getSyllabusPath() != null);

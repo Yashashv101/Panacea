@@ -50,6 +50,7 @@ public class StudentProfileService {
     private final SectionRepository sectionRepository;
     private final SemesterRepository semesterRepository;
     private final SubjectRepository subjectRepository;
+    private final com.example.Panacea.academic.repository.SubjectStaffAssignmentRepository subjectStaffAssignmentRepository;
     private final ElectiveEnrollmentRequestRepository electiveEnrollmentRequestRepository;
     private final AttendanceReportRepository attendanceReportRepository;
     private final StudentResultRepository studentResultRepository;
@@ -206,9 +207,10 @@ public class StudentProfileService {
     @Transactional(readOnly = true)
     public List<SubjectResponse> findCoreSubjects(Long studentUserId) {
         StudentProfile profile = getByUserId(studentUserId);
+        Section section = profile.getSection();
         return subjectRepository.findByCoursesIdAndSemesterIdAndType(
                         profile.getCourse().getId(), profile.getSemester().getId(), SubjectType.CORE).stream()
-                .map(SubjectResponse::from)
+                .map(subject -> SubjectResponse.from(subject, resolveAssignedStaff(subject, section)))
                 .toList();
     }
 
@@ -220,9 +222,11 @@ public class StudentProfileService {
      */
     @Transactional(readOnly = true)
     public List<SubjectResponse> findApprovedElectiveSubjects(Long studentUserId) {
+        StudentProfile profile = getByUserId(studentUserId);
+        Section section = profile.getSection();
         return electiveEnrollmentRequestRepository
                 .findByStudentIdAndStatus(studentUserId, EnrollmentStatus.APPROVED).stream()
-                .map(request -> SubjectResponse.from(request.getSubject()))
+                .map(request -> SubjectResponse.from(request.getSubject(), resolveAssignedStaff(request.getSubject(), section)))
                 .toList();
     }
 
@@ -273,10 +277,20 @@ public class StudentProfileService {
      */
     @Transactional(readOnly = true)
     public SubjectResponse getAccessibleSubject(Long studentUserId, Long subjectId) {
+        StudentProfile profile = getByUserId(studentUserId);
         Subject subject = subjectRepository.findById(subjectId)
                 .orElseThrow(() -> new EntityNotFoundException("Subject " + subjectId + " not found"));
         requireSubjectAccessible(studentUserId, subjectId);
-        return SubjectResponse.from(subject);
+        return SubjectResponse.from(subject, resolveAssignedStaff(subject, profile.getSection()));
+    }
+
+    private User resolveAssignedStaff(Subject subject, Section section) {
+        if (section == null) {
+            return subject.getPrimaryStaff();
+        }
+        return subjectStaffAssignmentRepository.findBySubjectIdAndSectionId(subject.getId(), section.getId())
+                .map(com.example.Panacea.academic.entity.SubjectStaffAssignment::getStaff)
+                .orElse(subject.getPrimaryStaff());
     }
 
     /**

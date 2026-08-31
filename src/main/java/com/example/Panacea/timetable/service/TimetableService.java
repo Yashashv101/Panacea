@@ -4,11 +4,13 @@ import com.example.Panacea.academic.entity.Course;
 import com.example.Panacea.academic.entity.Section;
 import com.example.Panacea.academic.entity.Semester;
 import com.example.Panacea.academic.entity.Subject;
+import com.example.Panacea.academic.entity.SubjectStaffAssignment;
 import com.example.Panacea.academic.entity.SubjectType;
 import com.example.Panacea.academic.repository.CourseRepository;
 import com.example.Panacea.academic.repository.SectionRepository;
 import com.example.Panacea.academic.repository.SemesterRepository;
 import com.example.Panacea.academic.repository.SubjectRepository;
+import com.example.Panacea.academic.repository.SubjectStaffAssignmentRepository;
 import com.example.Panacea.audit.service.AuditLogService;
 import com.example.Panacea.identity.entity.User;
 import com.example.Panacea.identity.repository.UserRepository;
@@ -25,9 +27,15 @@ import com.example.Panacea.timetable.dto.TimetableGenerationResponse;
 import com.example.Panacea.timetable.dto.TimetablePublishResponse;
 import com.example.Panacea.timetable.entity.TimetableEntry;
 import com.example.Panacea.timetable.repository.TimetableEntryRepository;
+import com.google.ortools.Loader;
+import com.google.ortools.sat.BoolVar;
+import com.google.ortools.sat.CpModel;
+import com.google.ortools.sat.CpSolver;
+import com.google.ortools.sat.CpSolverStatus;
+import com.google.ortools.sat.LinearExpr;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DataIntegrityViolationException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,46 +43,51 @@ import java.time.DayOfWeek;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
- * Greedy randomized timetable scheduler, mirroring the reference system's
- * generate_for_session() heuristic: shuffle candidate (day, period) slots for
- * each subject and take the first slot that is free for both the staff member
- * and the section. Randomizing attempt order avoids always starving
- * later-processed subjects of the same early slots.
+ * Constraint-Satisfaction Problem (CSP) timetable scheduler powered by Google OR-Tools CP-SAT.
  *
- * The in-memory availability check is the primary mechanism, but every save
- * still goes through the entity's DB-level unique constraints (staff+day+period,
- * section+day+period) as the final safety net for anything the in-memory check misses.
- *
- * The per-section scheduling loop lives in {@link #scheduleSubjectsForSection},
- * shared by both the original single-section {@link #generate} and the
- * department-wide {@link #generateForCourse} added this session — see that
- * method's javadoc for why a shared re-queried-per-call method (rather than a
- * hand-threaded shared in-memory set) is what makes reusing it across
- * multiple sections in one batch actually safe.
+ * Formulates multi-section timetable scheduling as an exact maximum-satisfaction CSP that:
+ * - Supports flexible per-(subject, section) staff assignments (1 to N staff per subject).
+ * - Enforces hard composite constraints across all sections simultaneously:
+ *   1. Staff + Day + Period uniqueness (no staff member is scheduled for two sections at once).
+ *   2. Section + Day + Period uniqueness (no section is scheduled for two classes at once).
+ *   3. At most one session of any subject per section per day (credits distributed across distinct days).
+ *   4. Upper bound of subject.credits weekly sessions per (subject, section).
+ * - Objective: Maximizes total scheduled sessions. When a 100% complete schedule is feasible, all
+ *   demanded credits are scheduled and persisted.
+ * - When an over-subscription or conflict makes a complete schedule impossible, CP-SAT produces
+ *   granular diagnostic feedback pinpointing the exact subject, section, staff, and session deficit.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class TimetableService {
+
+    static {
+        Loader.loadNativeLibraries();
+    }
 
     private static final List<DayOfWeek> DAYS = List.of(
             DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY, DayOfWeek.THURSDAY, DayOfWeek.FRIDAY);
     private static final int MIN_PERIOD = 1;
     private static final int MAX_PERIOD = 6;
+    private static final int TOTAL_WEEKLY_PERIODS = DAYS.size() * (MAX_PERIOD - MIN_PERIOD + 1);
 
     private final SubjectRepository subjectRepository;
     private final SectionRepository sectionRepository;
     private final SemesterRepository semesterRepository;
     private final CourseRepository courseRepository;
     private final TimetableEntryRepository timetableEntryRepository;
+    private final SubjectStaffAssignmentRepository subjectStaffAssignmentRepository;
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
     private final HodScopeResolver hodScopeResolver;
@@ -116,37 +129,21 @@ public class TimetableService {
         List<Subject> subjects = subjectRepository
                 .findBySemesterIdAndSectionsId(semester.getId(), section.getId())
                 .stream()
-                .filter(subject -> subject.getPrimaryStaff() != null)
                 .filter(subject -> subject.getCredits() != null && subject.getCredits() > 0)
                 .toList();
 
-        SectionScheduleResult result = scheduleSubjectsForSection(subjects, section);
+        ScheduleResult result = solveTimetable(List.of(section), subjects);
 
         auditLogService.record(actor, "TIMETABLE_REGENERATE", "Section", section.getId(),
-                "Generated " + result.created() + " entries (" + result.skipped() + " skipped) for semester "
+                "Generated " + result.totalCreated() + " entries (" + result.totalSkipped() + " skipped) for semester "
                         + semester.getId());
 
-        return new TimetableGenerationResponse(result.created(), result.skipped(), result.errors());
+        return new TimetableGenerationResponse(result.totalCreated(), result.totalSkipped(), result.errors());
     }
 
     /**
-     * Department-wide batch generation: every core subject for this
-     * Course+Semester (same derivation StudentProfileService#findCoreSubjects
-     * uses), plus whichever electives the admin selected, scheduled across
-     * every Section under the Course in one call.
-     *
-     * This is what actually prevents a staff member teaching the same subject
-     * to two different sections from being double-booked between them: each
-     * section is scheduled via the same {@link #scheduleSubjectsForSection}
-     * call the single-section endpoint uses, and that method re-queries
-     * "does this staff member already have an entry at (day, period)?" fresh
-     * from the DB (not scoped to any one section) on every call. Because each
-     * section's entries are saveAndFlush'd immediately (see
-     * scheduleSubjectsForSection), the very next section processed in this
-     * same loop sees the previous section's newly-committed staff slots as
-     * already occupied — so sequential per-section calls within one
-     * transaction are sufficient; nothing needs to be rewritten to hold one
-     * shared in-memory set across all sections at once.
+     * Department-wide batch generation: schedules all core subjects plus selected electives
+     * across all sections under the course simultaneously via CP-SAT.
      */
     @Transactional
     public BatchTimetableGenerationResponse generateForCourse(GenerateCourseTimetableRequest request, Long actorId) {
@@ -160,7 +157,6 @@ public class TimetableService {
         List<Subject> electiveSubjects = resolveSelectedElectives(request.electiveSubjectIds(), course, semester);
 
         List<Subject> subjects = Stream.concat(coreSubjects.stream(), electiveSubjects.stream())
-                .filter(subject -> subject.getPrimaryStaff() != null)
                 .filter(subject -> subject.getCredits() != null && subject.getCredits() > 0)
                 .toList();
 
@@ -168,40 +164,21 @@ public class TimetableService {
         if (sections.isEmpty()) {
             throw new IllegalArgumentException("Course " + course.getId() + " has no sections");
         }
-        List<Section> shuffledSections = new ArrayList<>(sections);
-        Collections.shuffle(shuffledSections);
 
-        int totalCreated = 0;
-        int totalSkipped = 0;
-        List<String> errors = new ArrayList<>();
-        List<SectionGenerationSummary> summaries = new ArrayList<>();
-
-        for (Section section : shuffledSections) {
-            SectionScheduleResult result = scheduleSubjectsForSection(subjects, section);
-            totalCreated += result.created();
-            totalSkipped += result.skipped();
-            errors.addAll(result.errors());
-            summaries.add(new SectionGenerationSummary(
-                    section.getId(), section.getName(), result.created(), result.skipped()));
-        }
-        summaries.sort(Comparator.comparing(SectionGenerationSummary::sectionName));
+        ScheduleResult result = solveTimetable(sections, subjects);
 
         auditLogService.record(actor, "TIMETABLE_REGENERATE_COURSE", "Course", course.getId(),
-                "Generated " + totalCreated + " entries (" + totalSkipped + " skipped) across " + sections.size()
-                        + " sections for semester " + semester.getId());
+                "Generated " + result.totalCreated() + " entries (" + result.totalSkipped() + " skipped) across "
+                        + sections.size() + " sections for semester " + semester.getId());
 
-        return new BatchTimetableGenerationResponse(totalCreated, totalSkipped, errors, summaries);
+        return new BatchTimetableGenerationResponse(
+                result.totalCreated(), result.totalSkipped(), result.errors(), result.summaries());
     }
 
     /**
      * The "Save" action: makes every draft entry generateForCourse (or the
      * single-section generate) produced for this course+semester visible on
-     * the affected sections' student dashboards. Scoped by (sectionIds,
-     * semesterId) rather than "publish every draft everywhere" so publishing
-     * one department/semester's batch never touches another semester's
-     * still-under-review draft that happens to share a section (e.g. a
-     * section that spans a HOD's odd-semester review while an even-semester
-     * batch for the same section is also mid-review).
+     * the affected sections' student dashboards.
      */
     @Transactional
     public TimetablePublishResponse publishForCourse(PublishTimetableRequest request, Long actorId) {
@@ -224,123 +201,306 @@ public class TimetableService {
     }
 
     /**
-     * The shared greedy scheduling loop: shuffles subjects and, for each,
-     * shuffled (day, period) candidates, skipping anything already occupied
-     * for either the subject's staff member or this section, until every
-     * subject's credit count is satisfied or slots run out.
-     *
-     * occupiedStaffSlots is seeded from every existing TimetableEntry for the
-     * staff members teaching `subjects` — queried by staff id, not scoped to
-     * `section` — so it reflects that staff member's real occupancy anywhere
-     * in the system, not just within this one section. (The original
-     * single-section version seeded this from the section's own existing
-     * rows only, which meant two sections generated independently could
-     * double-book the same staff member — exactly the gap
-     * generateForCourse's per-section calls close, since each call here reads
-     * the latest DB state including whatever the previous section's call in
-     * the same batch just flushed.)
-     *
-     * Clean-regenerate: existing entries for exactly these (subject, section)
-     * pairs are wiped before the occupancy sets are seeded, so calling
-     * Generate again for the same course/semester replaces that subject's
-     * classes in this section rather than adding more on top of them —
-     * without this, a repeated run would silently pile a 4-credit subject up
-     * to 8, 12, ... classes/week instead of staying at 4.
+     * Core CP-SAT Solver implementation.
+     * Maps the timetable generation problem across the given sections and subjects into a CSP.
      */
-    private SectionScheduleResult scheduleSubjectsForSection(List<Subject> subjects, Section section) {
-        List<Subject> shuffledSubjects = new ArrayList<>(subjects);
-        Collections.shuffle(shuffledSubjects);
+    private ScheduleResult solveTimetable(List<Section> sections, List<Subject> subjects) {
+        List<String> errors = new ArrayList<>();
+        List<ClassTarget> targets = new ArrayList<>();
 
-        Set<Long> subjectIds = shuffledSubjects.stream().map(Subject::getId).collect(Collectors.toSet());
-        if (!subjectIds.isEmpty()) {
-            timetableEntryRepository.deleteBySectionIdAndSubjectIdIn(section.getId(), subjectIds);
+        // 1. Resolve assigned staff for each (subject, section) pair
+        for (Section section : sections) {
+            for (Subject subject : subjects) {
+                User staff = resolveStaffForSubjectAndSection(subject, section);
+                if (staff == null) {
+                    errors.add("No staff assigned for subject '" + subject.getName() + "' in section '" + section.getName() + "'");
+                    continue;
+                }
+                targets.add(new ClassTarget(subject, section, staff, subject.getCredits()));
+            }
         }
 
-        Set<Long> staffIds = shuffledSubjects.stream()
-                .map(subject -> subject.getPrimaryStaff().getId())
-                .collect(Collectors.toSet());
+        if (targets.isEmpty()) {
+            List<SectionGenerationSummary> emptySummaries = sections.stream()
+                    .map(s -> new SectionGenerationSummary(s.getId(), s.getName(), 0, 0))
+                    .sorted(Comparator.comparing(SectionGenerationSummary::sectionName))
+                    .toList();
+            return new ScheduleResult(0, 0, errors, emptySummaries);
+        }
+
+        // 2. Pre-flight structural bottleneck diagnostics
+        runPreFlightDiagnostics(targets, sections, errors);
+
+        Set<Long> batchSectionIds = sections.stream().map(Section::getId).collect(Collectors.toSet());
+        Set<Long> batchSubjectIds = subjects.stream().map(Subject::getId).collect(Collectors.toSet());
+
+        // 3. Seed external occupancy for staff and sections (excluding entries in this exact batch that will be replaced)
+        Set<Long> staffIds = targets.stream().map(t -> t.staff().getId()).collect(Collectors.toSet());
         Set<String> occupiedStaffSlots = new HashSet<>();
         if (!staffIds.isEmpty()) {
             for (TimetableEntry existing : timetableEntryRepository.findByStaffIdIn(staffIds)) {
-                occupiedStaffSlots.add(slotKey(existing.getStaff().getId(), existing.getDay(), existing.getPeriod()));
+                boolean isCurrentBatchEntry = batchSectionIds.contains(existing.getSection().getId())
+                        && batchSubjectIds.contains(existing.getSubject().getId());
+                if (!isCurrentBatchEntry) {
+                    occupiedStaffSlots.add(slotKey(existing.getStaff().getId(), existing.getDay(), existing.getPeriod()));
+                }
             }
         }
+
         Set<String> occupiedSectionSlots = new HashSet<>();
-        for (TimetableEntry existing : timetableEntryRepository.findBySectionIdOrderByDayAscPeriodAsc(section.getId())) {
-            occupiedSectionSlots.add(slotKey(existing.getSection().getId(), existing.getDay(), existing.getPeriod()));
+        for (Section section : sections) {
+            for (TimetableEntry existing : timetableEntryRepository.findBySectionIdOrderByDayAscPeriodAsc(section.getId())) {
+                boolean isCurrentBatchEntry = batchSubjectIds.contains(existing.getSubject().getId());
+                if (!isCurrentBatchEntry) {
+                    occupiedSectionSlots.add(slotKey(existing.getSection().getId(), existing.getDay(), existing.getPeriod()));
+                }
+            }
         }
 
-        int created = 0;
-        int skipped = 0;
-        List<String> errors = new ArrayList<>();
+        // 4. Formulate CP-SAT Model with Maximum Satisfaction Objective
+        CpModel model = new CpModel();
+        Map<TargetSlot, BoolVar> varMap = new HashMap<>();
+        List<BoolVar> allVars = new ArrayList<>();
+        int totalCreditsNeeded = 0;
 
-        for (Subject subject : shuffledSubjects) {
-            User staff = subject.getPrimaryStaff();
-            int classesNeeded = subject.getCredits();
+        for (int i = 0; i < targets.size(); i++) {
+            ClassTarget target = targets.get(i);
+            totalCreditsNeeded += target.credits();
+            for (DayOfWeek day : DAYS) {
+                for (int period = MIN_PERIOD; period <= MAX_PERIOD; period++) {
+                    String staffKey = slotKey(target.staff().getId(), day, period);
+                    String sectionKey = slotKey(target.section().getId(), day, period);
 
-            List<DayOfWeek> days = new ArrayList<>(DAYS);
-            Collections.shuffle(days);
-
-            for (DayOfWeek day : days) {
-                if (classesNeeded == 0) {
-                    break;
-                }
-                // At most one class of a given subject per day — credits is a
-                // weekly total (e.g. 3 credits = 3 one-hour classes spread
-                // across 3 different days), never multiple hours of the same
-                // subject stacked on one day. The `break` right after a
-                // successful save (below) stops trying further periods once
-                // this day has yielded one class; a rejected/occupied period
-                // still just moves on to the next period within the same
-                // day, same as before.
-                List<Integer> periods = shuffledPeriods();
-                for (Integer period : periods) {
-                    String staffKey = slotKey(staff.getId(), day, period);
-                    String sectionKey = slotKey(section.getId(), day, period);
+                    // If slot is occupied by external entries outside this batch, do not create variable (constrained to 0)
                     if (occupiedStaffSlots.contains(staffKey) || occupiedSectionSlots.contains(sectionKey)) {
                         continue;
                     }
 
-                    TimetableEntry entry = TimetableEntry.builder()
-                            .subject(subject)
-                            .section(section)
-                            .staff(staff)
-                            .day(day)
-                            .period(period)
-                            .build();
-                    try {
-                        timetableEntryRepository.saveAndFlush(entry);
-                        occupiedStaffSlots.add(staffKey);
-                        occupiedSectionSlots.add(sectionKey);
-                        created++;
-                        classesNeeded--;
-                        break;
-                    } catch (DataIntegrityViolationException conflict) {
-                        // DB-level unique constraint caught a conflict the in-memory check missed.
-                        skipped++;
-                    }
+                    BoolVar var = model.newBoolVar("x_" + i + "_" + day.name() + "_" + period);
+                    varMap.put(new TargetSlot(i, day, period), var);
+                    allVars.add(var);
                 }
-            }
-
-            if (classesNeeded > 0) {
-                errors.add("Could only schedule %d of %d sessions for subject '%s' in section '%s'"
-                        .formatted(subject.getCredits() - classesNeeded, subject.getCredits(),
-                                subject.getName(), section.getName()));
             }
         }
 
-        return new SectionScheduleResult(created, skipped, errors);
-    }
+        // Constraint A: At most subject.credits weekly sessions for each target (subject, section)
+        for (int i = 0; i < targets.size(); i++) {
+            ClassTarget target = targets.get(i);
+            List<BoolVar> targetVars = new ArrayList<>();
+            for (DayOfWeek day : DAYS) {
+                for (int period = MIN_PERIOD; period <= MAX_PERIOD; period++) {
+                    BoolVar v = varMap.get(new TargetSlot(i, day, period));
+                    if (v != null) {
+                        targetVars.add(v);
+                    }
+                }
+            }
+            if (!targetVars.isEmpty()) {
+                model.addLessOrEqual(LinearExpr.sum(targetVars.toArray(new BoolVar[0])), target.credits());
+            }
+        }
 
-    private record SectionScheduleResult(int created, int skipped, List<String> errors) {
+        // Constraint B: At most one class per subject per day for each section
+        for (int i = 0; i < targets.size(); i++) {
+            for (DayOfWeek day : DAYS) {
+                List<BoolVar> dayVars = new ArrayList<>();
+                for (int period = MIN_PERIOD; period <= MAX_PERIOD; period++) {
+                    BoolVar v = varMap.get(new TargetSlot(i, day, period));
+                    if (v != null) {
+                        dayVars.add(v);
+                    }
+                }
+                if (!dayVars.isEmpty()) {
+                    model.addLessOrEqual(LinearExpr.sum(dayVars.toArray(new BoolVar[0])), 1);
+                }
+            }
+        }
+
+        // Constraint C: Section + Day + Period uniqueness (no section double-booking)
+        for (Section section : sections) {
+            for (DayOfWeek day : DAYS) {
+                for (int period = MIN_PERIOD; period <= MAX_PERIOD; period++) {
+                    List<BoolVar> sectionSlotVars = new ArrayList<>();
+                    for (int i = 0; i < targets.size(); i++) {
+                        if (targets.get(i).section().getId().equals(section.getId())) {
+                            BoolVar v = varMap.get(new TargetSlot(i, day, period));
+                            if (v != null) {
+                                sectionSlotVars.add(v);
+                            }
+                        }
+                    }
+                    if (sectionSlotVars.size() > 1) {
+                        model.addLessOrEqual(LinearExpr.sum(sectionSlotVars.toArray(new BoolVar[0])), 1);
+                    }
+                }
+            }
+        }
+
+        // Constraint D: Staff + Day + Period uniqueness (no staff double-booking across any section)
+        for (Long staffId : staffIds) {
+            for (DayOfWeek day : DAYS) {
+                for (int period = MIN_PERIOD; period <= MAX_PERIOD; period++) {
+                    List<BoolVar> staffSlotVars = new ArrayList<>();
+                    for (int i = 0; i < targets.size(); i++) {
+                        if (targets.get(i).staff().getId().equals(staffId)) {
+                            BoolVar v = varMap.get(new TargetSlot(i, day, period));
+                            if (v != null) {
+                                staffSlotVars.add(v);
+                            }
+                        }
+                    }
+                    if (staffSlotVars.size() > 1) {
+                        model.addLessOrEqual(LinearExpr.sum(staffSlotVars.toArray(new BoolVar[0])), 1);
+                    }
+                }
+            }
+        }
+
+        // Objective: Maximize total scheduled sessions
+        if (!allVars.isEmpty()) {
+            model.maximize(LinearExpr.sum(allVars.toArray(new BoolVar[0])));
+        }
+
+        // 5. Solve the Model
+        CpSolver solver = new CpSolver();
+        solver.getParameters().setMaxTimeInSeconds(10.0);
+        solver.getParameters().setRandomSeed(ThreadLocalRandom.current().nextInt(1, 1_000_000));
+
+        CpSolverStatus status = solver.solve(model);
+        log.info("CP-SAT solver returned status: {} in {} ms", status, (int) (solver.userTime() * 1000));
+
+        if (status != CpSolverStatus.OPTIMAL && status != CpSolverStatus.FEASIBLE) {
+            errors.add("Could not find a feasible conflict-free timetable satisfying all constraints.");
+            List<SectionGenerationSummary> summaries = sections.stream()
+                    .map(s -> new SectionGenerationSummary(s.getId(), s.getName(), 0, 0))
+                    .sorted(Comparator.comparing(SectionGenerationSummary::sectionName))
+                    .toList();
+            return new ScheduleResult(0, 0, errors, summaries);
+        }
+
+        // 6. Calculate Per-Target Scheduled Count & Detailed Infeasibility Diagnostics
+        Map<Integer, Integer> scheduledCountByTarget = new HashMap<>();
+        int totalScheduled = 0;
+
+        for (Map.Entry<TargetSlot, BoolVar> entry : varMap.entrySet()) {
+            if (solver.booleanValue(entry.getValue())) {
+                scheduledCountByTarget.merge(entry.getKey().targetIndex(), 1, Integer::sum);
+                totalScheduled++;
+            }
+        }
+
+        for (int i = 0; i < targets.size(); i++) {
+            ClassTarget target = targets.get(i);
+            int scheduled = scheduledCountByTarget.getOrDefault(i, 0);
+            if (scheduled < target.credits()) {
+                errors.add("Could only schedule %d of %d sessions for subject '%s' in section '%s' (Staff: %s %s)"
+                        .formatted(scheduled, target.credits(), target.subject().getName(), target.section().getName(),
+                                target.staff().getFirstName(), target.staff().getLastName()));
+            }
+        }
+
+        // If total scheduled falls short of demanded credits, report diagnostic errors without touching existing DB entries
+        if (totalScheduled < totalCreditsNeeded) {
+            List<SectionGenerationSummary> summaries = sections.stream()
+                    .map(s -> new SectionGenerationSummary(s.getId(), s.getName(), 0, 0))
+                    .sorted(Comparator.comparing(SectionGenerationSummary::sectionName))
+                    .toList();
+            return new ScheduleResult(0, 0, errors, summaries);
+        }
+
+        // 7. Atomic Clean-and-Persist: delete previous entries and insert new ones
+        for (Section section : sections) {
+            timetableEntryRepository.deleteBySectionIdAndSubjectIdIn(section.getId(), batchSubjectIds);
+        }
+
+        Map<Long, Integer> createdPerSection = new HashMap<>();
+        int totalCreated = 0;
+
+        for (Map.Entry<TargetSlot, BoolVar> entry : varMap.entrySet()) {
+            if (solver.booleanValue(entry.getValue())) {
+                TargetSlot slot = entry.getKey();
+                ClassTarget target = targets.get(slot.targetIndex());
+
+                TimetableEntry timetableEntry = TimetableEntry.builder()
+                        .subject(target.subject())
+                        .section(target.section())
+                        .staff(target.staff())
+                        .day(slot.day())
+                        .period(slot.period())
+                        .published(false)
+                        .build();
+
+                timetableEntryRepository.saveAndFlush(timetableEntry);
+                createdPerSection.merge(target.section().getId(), 1, Integer::sum);
+                totalCreated++;
+            }
+        }
+
+        List<SectionGenerationSummary> summaries = sections.stream()
+                .map(s -> new SectionGenerationSummary(s.getId(), s.getName(), createdPerSection.getOrDefault(s.getId(), 0), 0))
+                .sorted(Comparator.comparing(SectionGenerationSummary::sectionName))
+                .toList();
+
+        return new ScheduleResult(totalCreated, 0, errors, summaries);
     }
 
     /**
-     * Validates each selected elective actually belongs to this course and
-     * semester and is really an ELECTIVE — rejects rather than silently
-     * dropping a bad id, same as the rest of this codebase's cross-field
-     * validation (e.g. UserService's required-when-HOD checks).
+     * Checks for structural over-subscriptions before solver invocation to provide
+     * immediate root-cause diagnosis.
      */
+    private void runPreFlightDiagnostics(List<ClassTarget> targets, List<Section> sections, List<String> errors) {
+        // Check 1: Subject credits vs weekly days (max 1 class/day)
+        for (ClassTarget target : targets) {
+            if (target.credits() > DAYS.size()) {
+                errors.add("Subject '%s' has %d credits, which exceeds the maximum of %d days per week (max 1 session/day)"
+                        .formatted(target.subject().getName(), target.credits(), DAYS.size()));
+            }
+        }
+
+        // Check 2: Section capacity
+        Map<Long, Integer> creditsBySection = new HashMap<>();
+        for (ClassTarget target : targets) {
+            creditsBySection.merge(target.section().getId(), target.credits(), Integer::sum);
+        }
+        for (Section section : sections) {
+            int demanded = creditsBySection.getOrDefault(section.getId(), 0);
+            if (demanded > TOTAL_WEEKLY_PERIODS) {
+                errors.add("Section '%s' has %d total weekly sessions demanded, which exceeds maximum section capacity of %d periods"
+                        .formatted(section.getName(), demanded, TOTAL_WEEKLY_PERIODS));
+            }
+        }
+
+        // Check 3: Staff capacity
+        Map<Long, Integer> creditsByStaff = new HashMap<>();
+        Map<Long, User> staffById = new HashMap<>();
+        for (ClassTarget target : targets) {
+            creditsByStaff.merge(target.staff().getId(), target.credits(), Integer::sum);
+            staffById.put(target.staff().getId(), target.staff());
+        }
+        for (Map.Entry<Long, Integer> entry : creditsByStaff.entrySet()) {
+            if (entry.getValue() > TOTAL_WEEKLY_PERIODS) {
+                User staff = staffById.get(entry.getKey());
+                errors.add("Staff '%s %s' is assigned %d total weekly sessions across sections, which exceeds maximum staff capacity of %d periods"
+                        .formatted(staff.getFirstName(), staff.getLastName(), entry.getValue(), TOTAL_WEEKLY_PERIODS));
+            }
+        }
+    }
+
+    private User resolveStaffForSubjectAndSection(Subject subject, Section section) {
+        return subjectStaffAssignmentRepository.findBySubjectIdAndSectionId(subject.getId(), section.getId())
+                .map(SubjectStaffAssignment::getStaff)
+                .orElse(subject.getPrimaryStaff());
+    }
+
+    private record ClassTarget(Subject subject, Section section, User staff, int credits) {
+    }
+
+    private record TargetSlot(int targetIndex, DayOfWeek day, int period) {
+    }
+
+    private record ScheduleResult(int totalCreated, int totalSkipped, List<String> errors, List<SectionGenerationSummary> summaries) {
+    }
+
     private List<Subject> resolveSelectedElectives(List<Long> electiveSubjectIds, Course course, Semester semester) {
         if (electiveSubjectIds == null || electiveSubjectIds.isEmpty()) {
             return List.of();
@@ -387,17 +547,6 @@ public class TimetableService {
                 .orElseThrow(() -> new EntityNotFoundException("Course " + courseId + " not found"));
     }
 
-    /**
-     * A single-section action, so a wrong-department HOD is rejected outright
-     * (403) via HodScopeResolver#requireCourseAccess, same treatment as
-     * AttendanceService/ResultService's single-student guards. Section.course
-     * is the direct path — no need to hop through a subject or profile the
-     * way the list-filtering endpoints do.
-     *
-     * The resolveScopeCourse short-circuit avoids forcing Section.course's
-     * lazy fetch for ADMIN, same reasoning as the StudentProfile
-     * short-circuit in AttendanceService/ResultService's guards.
-     */
     private void requireHodScopeAllowsSection(Section section, User actor) {
         if (hodScopeResolver.resolveScopeCourse(actor) == null) {
             return;
@@ -405,22 +554,11 @@ public class TimetableService {
         hodScopeResolver.requireCourseAccess(actor, section.getCourse() != null ? section.getCourse().getId() : null);
     }
 
-    /**
-     * Same guard, but the course is already known directly — no need to hop
-     * through a Section the way the single-section action does.
-     */
     private void requireHodScopeAllowsCourse(Course course, User actor) {
         if (hodScopeResolver.resolveScopeCourse(actor) == null) {
             return;
         }
         hodScopeResolver.requireCourseAccess(actor, course.getId());
-    }
-
-    private static List<Integer> shuffledPeriods() {
-        List<Integer> periods = IntStream.rangeClosed(MIN_PERIOD, MAX_PERIOD).boxed()
-                .collect(Collectors.toCollection(ArrayList::new));
-        Collections.shuffle(periods, ThreadLocalRandom.current());
-        return periods;
     }
 
     private static String slotKey(Long ownerId, DayOfWeek day, Integer period) {

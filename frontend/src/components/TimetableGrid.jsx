@@ -8,10 +8,9 @@ export function timetableDayLabel(day) {
 /**
  * The Day x Period grid shared by the admin per-section view
  * (TimetableGeneration.jsx), the student dashboard, and staff's own
- * timetable — same cell content (subject + staff name) everywhere, only the
- * data source and empty-state copy differ.
+ * timetable — renders subject name, section name (e.g. Sec A), and staff name.
  */
-export default function TimetableGrid({ entries, emptyMessage = "No timetable entries yet." }) {
+export default function TimetableGrid({ entries, emptyMessage = "No timetable entries yet.", showSection = true }) {
   if (entries.length === 0) {
     return <p className="text-sm text-slate">{emptyMessage}</p>;
   }
@@ -47,9 +46,14 @@ export default function TimetableGrid({ entries, emptyMessage = "No timetable en
                 return (
                   <td key={period} className="border-b border-brass/20 px-3 py-3 align-top">
                     {entry ? (
-                      <div>
-                        <div className="text-sm text-ink">{entry.subjectName}</div>
-                        <div className="text-xs text-slate">{entry.staffName}</div>
+                      <div className="flex flex-col gap-0.5">
+                        <div className="text-sm font-medium text-ink">{entry.subjectName}</div>
+                        {showSection && entry.sectionName && (
+                          <div className="font-mono text-xs text-oxblood">Sec {entry.sectionName}</div>
+                        )}
+                        {entry.staffName && (
+                          <div className="text-xs text-slate">{entry.staffName}</div>
+                        )}
                       </div>
                     ) : (
                       <span className="text-sm text-slate">—</span>

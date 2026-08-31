@@ -79,6 +79,7 @@ public class FullResetSeeder implements CommandLineRunner {
 
     private static final List<String> TABLES_IN_TRUNCATE_ORDER = List.of(
             "audit_logs", "attendance_reports", "attendances", "subject_courses", "subject_sections",
+            "subject_staff_assignments",
             "quiz_question_options", "quiz_attempt_answers", "quiz_attempts", "quiz_questions", "quizzes",
             "student_results", "timetable_entries", "proctor_assignments", "elective_enrollment_requests",
             "leave_requests", "feedback", "notifications", "fee_payments", "fee_structures",
@@ -120,6 +121,7 @@ public class FullResetSeeder implements CommandLineRunner {
     private final SectionService sectionService;
     private final SemesterService semesterService;
     private final SubjectService subjectService;
+    private final com.example.Panacea.academic.service.SubjectStaffAssignmentService subjectStaffAssignmentService;
     private final UserService userService;
     private final FeeStructureService feeStructureService;
     private final FeePaymentRepository feePaymentRepository;
@@ -141,7 +143,7 @@ public class FullResetSeeder implements CommandLineRunner {
         Semester semester = seedSemester(session);
         Map<String, Course> coursesByCode = seedCourses();
         Map<String, List<SectionResponse>> sectionsByCourseCode = seedSections(coursesByCode);
-        List<User> staff = seedStaff();
+        List<User> staff = seedStaff(coursesByCode);
         int subjectCount = seedSubjects(coursesByCode, sectionsByCourseCode, semester, staff);
         StudentSeedResult students = seedStudents(coursesByCode, sectionsByCourseCode, semester);
         List<FeeStructureResponse> feeStructures = seedFeeStructures(coursesByCode, semester);
@@ -195,12 +197,14 @@ public class FullResetSeeder implements CommandLineRunner {
         return byCourseCode;
     }
 
-    private List<User> seedStaff() {
+    private List<User> seedStaff(Map<String, Course> coursesByCode) {
         List<User> staff = new ArrayList<>();
+        List<Course> courses = new ArrayList<>(coursesByCode.values());
         for (int i = 1; i <= STAFF_COUNT; i++) {
+            Course course = courses.get((i - 1) % courses.size());
             staff.add(userService.createUser(new CreateUserRequest(
                     "staff" + i + "@panacea.edu", SEEDED_PASSWORD, "Staff", "Member" + i,
-                    Role.STAFF, null, null, null)));
+                    Role.STAFF, course.getId(), null, null)));
         }
         return staff;
     }
@@ -210,17 +214,78 @@ public class FullResetSeeder implements CommandLineRunner {
         int index = 0;
         for (SubjectSpec spec : SUBJECT_SPECS) {
             Course course = coursesByCode.get(spec.courseCode());
-            Set<Long> sectionIds = sectionsByCourseCode.get(spec.courseCode()).stream()
+            List<SectionResponse> secList = sectionsByCourseCode.get(spec.courseCode());
+            Set<Long> sectionIds = secList.stream()
                     .map(SectionResponse::id)
                     .collect(java.util.stream.Collectors.toSet());
             User primaryStaff = staff.get(index % staff.size());
 
-            subjectService.create(new SubjectRequest(
+            var subject = subjectService.create(new SubjectRequest(
                     spec.name(), spec.credits(), spec.type(), primaryStaff.getId(), semester.getId(),
                     Set.of(course.getId()), sectionIds));
+
+            seedStaffAssignmentsForSubject(subject.id(), secList, staff, spec.name());
             index++;
         }
         return SUBJECT_SPECS.size();
+    }
+
+    private void seedStaffAssignmentsForSubject(Long subjectId, List<SectionResponse> sections, List<User> staff, String name) {
+        if (sections.size() == 4) {
+            if ("Parallel Computing".equals(name) || "Software Testing and QA".equals(name) || "NoSQL".equals(name) || "Electric Vehicles".equals(name)) {
+                // 2 staff across 4 sections (2 + 2)
+                User staffA = staff.get(0);
+                User staffB = staff.get(1);
+                if ("Software Testing and QA".equals(name)) {
+                    staffA = staff.get(1);
+                    staffB = staff.get(2);
+                } else if ("NoSQL".equals(name)) {
+                    staffA = staff.get(3);
+                    staffB = staff.get(4);
+                } else if ("Electric Vehicles".equals(name)) {
+                    staffA = staff.get(2);
+                    staffB = staff.get(0);
+                }
+                assign(subjectId, staffA.getId(), Set.of(sections.get(0).id(), sections.get(1).id()));
+                assign(subjectId, staffB.getId(), Set.of(sections.get(2).id(), sections.get(3).id()));
+            } else if ("CNS".equals(name) || "Distributed File System".equals(name)) {
+                // 1 staff covering all 4 sections
+                User staffAll = "CNS".equals(name) ? staff.get(0) : staff.get(3);
+                assign(subjectId, staffAll.getId(), Set.of(sections.get(0).id(), sections.get(1).id(), sections.get(2).id(), sections.get(3).id()));
+            } else {
+                // 3 staff across 4 sections (2 + 1 + 1)
+                User staffA = staff.get(2);
+                User staffB = staff.get(3);
+                User staffC = staff.get(4);
+                if ("Big Data Analytics".equals(name)) {
+                    staffA = staff.get(0);
+                    staffB = staff.get(1);
+                    staffC = staff.get(4);
+                }
+                assign(subjectId, staffA.getId(), Set.of(sections.get(0).id(), sections.get(1).id()));
+                assign(subjectId, staffB.getId(), Set.of(sections.get(2).id()));
+                assign(subjectId, staffC.getId(), Set.of(sections.get(3).id()));
+            }
+        } else if (sections.size() == 2) {
+            if ("Computer Network".equals(name) || "Project Management".equals(name)) {
+                // 2 staff across 2 sections (1 + 1)
+                User staffA = "Computer Network".equals(name) ? staff.get(0) : staff.get(3);
+                User staffB = "Computer Network".equals(name) ? staff.get(1) : staff.get(4);
+                assign(subjectId, staffA.getId(), Set.of(sections.get(0).id()));
+                assign(subjectId, staffB.getId(), Set.of(sections.get(1).id()));
+            } else {
+                // 1 staff covering both sections
+                User staffAll = "Machine Learning".equals(name) ? staff.get(2) : staff.get(1);
+                assign(subjectId, staffAll.getId(), Set.of(sections.get(0).id(), sections.get(1).id()));
+            }
+        } else {
+            assign(subjectId, staff.get(0).getId(), sections.stream().map(SectionResponse::id).collect(java.util.stream.Collectors.toSet()));
+        }
+    }
+
+    private void assign(Long subjectId, Long staffId, Set<Long> sectionIds) {
+        subjectStaffAssignmentService.assignStaff(
+                new com.example.Panacea.academic.dto.SubjectStaffAssignmentRequest(staffId, subjectId, sectionIds), staffId);
     }
 
     private record StudentSeedResult(List<StudentSeed> all, List<StudentSeed> unpaid) {

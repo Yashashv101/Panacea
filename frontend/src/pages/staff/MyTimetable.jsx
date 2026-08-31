@@ -33,6 +33,7 @@ export default function MyTimetable() {
     <div>
       <div className="mb-6 border-b border-brass/20 pb-4">
         <h1 className="font-display text-2xl font-semibold text-ink">My Timetable</h1>
+        <p className="mt-1 text-sm text-slate">Weekly schedule of your classes across all assigned sections.</p>
       </div>
 
       {loading ? (
@@ -40,7 +41,11 @@ export default function MyTimetable() {
       ) : loadError ? (
         <p className="text-sm text-oxblood">{loadError}</p>
       ) : (
-        <TimetableGrid entries={entries} emptyMessage="No timetable entries have been published for you yet." />
+        <TimetableGrid
+          entries={entries}
+          showSection={true}
+          emptyMessage="No timetable entries have been scheduled for you yet."
+        />
       )}
     </div>
   );

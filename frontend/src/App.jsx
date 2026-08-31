@@ -14,6 +14,8 @@ import LeaveQueue from "./pages/admin/LeaveQueue";
 import FeesOverview from "./pages/admin/FeesOverview";
 import FeedbackQueue from "./pages/admin/FeedbackQueue";
 import ProctorAssignment from "./pages/admin/ProctorAssignment";
+import StaffAssignment from "./pages/admin/StaffAssignment.jsx";
+import StaffDashboard from "./pages/staff/StaffDashboard.jsx";
 import MarkAttendance from "./pages/staff/MarkAttendance.jsx";
 import EnterResults from "./pages/staff/EnterResults.jsx";
 import CourseMaterials from "./pages/staff/CourseMaterials.jsx";
@@ -40,7 +42,7 @@ import AnnouncementForm from "./pages/hod/AnnouncementForm.jsx";
 function RootRoute() {
   const { role } = useAuth();
   if (role === "STUDENT") return <StudentDashboard />;
-  if (role === "STAFF") return <Navigate to="/staff/attendance" replace />;
+  if (role === "STAFF") return <Navigate to="/staff" replace />;
   if (role === "ADMIN") return <Navigate to="/admin/users" replace />;
   if (role === "HOD") return <Navigate to="/hod" replace />;
   return <Navigate to="/login" replace />;
@@ -212,6 +214,22 @@ export default function App() {
           />
 
           <Route
+            path="/staff"
+            element={
+              <ProtectedRoute allowedRoles={["STAFF"]}>
+                <StaffDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/staff/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={["STAFF"]}>
+                <StaffDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/staff/attendance"
             element={
               <ProtectedRoute allowedRoles={["STAFF"]}>
@@ -297,6 +315,22 @@ export default function App() {
             element={
               <ProtectedRoute allowedRoles={["ADMIN"]}>
                 <AcademicStructure />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/staff-assignments"
+            element={
+              <ProtectedRoute allowedRoles={["ADMIN", "HOD"]}>
+                <StaffAssignment />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/hod/staff-assignments"
+            element={
+              <ProtectedRoute allowedRoles={["HOD"]}>
+                <StaffAssignment />
               </ProtectedRoute>
             }
           />

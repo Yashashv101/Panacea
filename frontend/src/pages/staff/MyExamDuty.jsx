@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
 import apiClient from "../../api/client";
+import MetricCard from "../../components/MetricCard";
+import Card from "../../components/Card";
+import { tableWrapClass, theadRowClass, thClass, tdClass, trClass } from "../admin/academic/formStyles";
+import { ClipboardCheck } from "lucide-react";
 
 const dateFormatter = new Intl.DateTimeFormat("en-IN", {
   day: "2-digit",
@@ -34,29 +38,47 @@ export default function MyExamDuty() {
 
   return (
     <div>
-      <div className="mb-6 border-b border-brass/20 pb-4">
+      <div className="mb-6">
         <h1 className="font-display text-2xl font-semibold text-ink">My Exam Duty</h1>
       </div>
 
       {loading ? (
-        <p className="text-sm text-slate">Loading…</p>
+        <p className="text-sm text-ink-secondary">Loading…</p>
       ) : loadError ? (
-        <p className="text-sm text-oxblood">{loadError}</p>
-      ) : assignments.length === 0 ? (
-        <p className="border-b border-brass/20 py-3 text-sm text-slate">
-          No exam invigilation duty has been assigned to you.
-        </p>
+        <p className="text-sm text-danger">{loadError}</p>
       ) : (
-        <div className="flex flex-col">
-          {assignments.map((assignment) => (
-            <div key={assignment.id} className="flex items-center justify-between border-b border-brass/20 py-3">
-              <span className="text-sm text-ink">{assignment.examSessionReference}</span>
-              <span className="font-mono text-xs text-slate">
-                Assigned {dateFormatter.format(new Date(assignment.assignedAt))}
-              </span>
-            </div>
-          ))}
-        </div>
+        <>
+          <div className="mb-6 max-w-xs">
+            <MetricCard label="Exam Duties" value={assignments.length} icon={ClipboardCheck} />
+          </div>
+
+          <Card title="Assignments">
+            {assignments.length === 0 ? (
+              <p className="py-3 text-sm text-ink-secondary">No exam invigilation duty has been assigned to you.</p>
+            ) : (
+              <div className={tableWrapClass}>
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className={theadRowClass}>
+                      <th className={thClass}>Exam session</th>
+                      <th className={`${thClass} text-right`}>Assigned</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {assignments.map((assignment) => (
+                      <tr key={assignment.id} className={trClass}>
+                        <td className={`${tdClass} font-medium`}>{assignment.examSessionReference}</td>
+                        <td className={`${tdClass} text-right font-mono text-xs text-ink-muted`}>
+                          {dateFormatter.format(new Date(assignment.assignedAt))}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        </>
       )}
     </div>
   );

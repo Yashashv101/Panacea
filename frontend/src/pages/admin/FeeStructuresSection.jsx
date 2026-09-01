@@ -5,8 +5,14 @@ import {
   labelClass,
   primaryButtonClass,
   rowActionClass,
+  tableWrapClass,
+  theadRowClass,
+  thClass,
+  tdClass,
+  trClass,
   extractErrorMessage,
 } from "./academic/formStyles";
+import Card from "../../components/Card";
 
 const EMPTY_FORM = { courseId: "", semesterId: "", tuitionAmount: "", examFeeAmount: "" };
 
@@ -81,11 +87,9 @@ export default function FeeStructuresSection({ feeStructures, setFeeStructures, 
   const canCreate = courses.length > 0 && semesters.length > 0;
 
   return (
-    <section className="mb-10 border-b border-brass/20 pb-8">
-      <h2 className="mb-4 font-display text-lg font-semibold text-ink">Fee Structures</h2>
-
+    <Card title="Fee Structures">
       {!canCreate ? (
-        <p className="mb-4 text-sm text-slate">Add at least one course and semester before setting fee structures.</p>
+        <p className="text-sm text-ink-secondary">Add at least one course and semester before setting fee structures.</p>
       ) : (
         <form onSubmit={handleCreate} className="mb-6 flex max-w-3xl flex-col gap-5">
           <div className="grid grid-cols-2 gap-5">
@@ -159,92 +163,110 @@ export default function FeeStructuresSection({ feeStructures, setFeeStructures, 
       )}
 
       {message && (
-        <p className={`mb-4 text-sm ${message.tone === "success" ? "text-slate" : "text-oxblood"}`}>{message.text}</p>
+        <p className={`mb-4 text-sm ${message.tone === "success" ? "text-ink-secondary" : "text-danger"}`}>
+          {message.text}
+        </p>
       )}
 
       {feeStructures.length === 0 ? (
-        <p className="border-b border-brass/20 py-3 text-sm text-slate">No fee structures yet.</p>
+        <p className="py-3 text-sm text-ink-secondary">No fee structures yet.</p>
       ) : (
-        <div className="flex flex-col">
-          {feeStructures.map((structure) => (
-            <div key={structure.id} className="border-b border-brass/20 py-3">
-              {editingId === structure.id ? (
-                <div className="flex flex-col gap-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <select
-                      value={editForm.courseId}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, courseId: e.target.value }))}
-                      className={inputClass}
-                    >
-                      {courses.map((course) => (
-                        <option key={course.id} value={course.id}>
-                          {course.name}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      value={editForm.semesterId}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, semesterId: e.target.value }))}
-                      className={inputClass}
-                    >
-                      {semesters.map((semester) => (
-                        <option key={semester.id} value={semester.id}>
-                          Sem {semester.number} — {semester.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={editForm.tuitionAmount}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, tuitionAmount: e.target.value }))}
-                      className={inputClass}
-                    />
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={editForm.examFeeAmount}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, examFeeAmount: e.target.value }))}
-                      className={inputClass}
-                    />
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <button type="button" onClick={() => handleSaveEdit(structure.id)} className={rowActionClass}>
-                      Save
-                    </button>
-                    <button type="button" onClick={cancelEdit} className={rowActionClass}>
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-sm text-ink">{structure.courseName}</span>
-                    <span className="ml-4 text-sm text-slate">{semesterLabel(structure.semesterId)}</span>
-                  </div>
-                  <div className="flex items-center gap-6">
-                    <span className="font-mono text-sm text-slate">
-                      Tuition {currencyFormatter.format(structure.tuitionAmount)} · Exam{" "}
-                      {currencyFormatter.format(structure.examFeeAmount)}
-                    </span>
-                    <span className="font-mono text-sm text-ink">
-                      {currencyFormatter.format(structure.totalAmount)}
-                    </span>
-                    <button type="button" onClick={() => startEdit(structure)} className={rowActionClass}>
-                      Edit
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
+        <div className={tableWrapClass}>
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className={theadRowClass}>
+                <th className={thClass}>Course</th>
+                <th className={thClass}>Semester</th>
+                <th className={thClass}>Tuition</th>
+                <th className={thClass}>Exam fee</th>
+                <th className={thClass}>Total</th>
+                <th className={`${thClass} text-right`}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {feeStructures.map((structure) => (
+                <tr key={structure.id} className={trClass}>
+                  {editingId === structure.id ? (
+                    <td colSpan={6} className="px-4 py-4">
+                      <div className="flex flex-col gap-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <select
+                            value={editForm.courseId}
+                            onChange={(e) => setEditForm((prev) => ({ ...prev, courseId: e.target.value }))}
+                            className={inputClass}
+                          >
+                            {courses.map((course) => (
+                              <option key={course.id} value={course.id}>
+                                {course.name}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            value={editForm.semesterId}
+                            onChange={(e) => setEditForm((prev) => ({ ...prev, semesterId: e.target.value }))}
+                            className={inputClass}
+                          >
+                            {semesters.map((semester) => (
+                              <option key={semester.id} value={semester.id}>
+                                Sem {semester.number} — {semester.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={editForm.tuitionAmount}
+                            onChange={(e) => setEditForm((prev) => ({ ...prev, tuitionAmount: e.target.value }))}
+                            className={inputClass}
+                          />
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={editForm.examFeeAmount}
+                            onChange={(e) => setEditForm((prev) => ({ ...prev, examFeeAmount: e.target.value }))}
+                            className={inputClass}
+                          />
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <button
+                            type="button"
+                            onClick={() => handleSaveEdit(structure.id)}
+                            className={primaryButtonClass}
+                          >
+                            Save
+                          </button>
+                          <button type="button" onClick={cancelEdit} className={rowActionClass}>
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    </td>
+                  ) : (
+                    <>
+                      <td className={`${tdClass} font-medium`}>{structure.courseName}</td>
+                      <td className={`${tdClass} text-ink-secondary`}>{semesterLabel(structure.semesterId)}</td>
+                      <td className={`${tdClass} font-mono`}>{currencyFormatter.format(structure.tuitionAmount)}</td>
+                      <td className={`${tdClass} font-mono`}>{currencyFormatter.format(structure.examFeeAmount)}</td>
+                      <td className={`${tdClass} font-mono font-semibold`}>
+                        {currencyFormatter.format(structure.totalAmount)}
+                      </td>
+                      <td className={`${tdClass} text-right`}>
+                        <button type="button" onClick={() => startEdit(structure)} className={rowActionClass}>
+                          Edit
+                        </button>
+                      </td>
+                    </>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
-    </section>
+    </Card>
   );
 }

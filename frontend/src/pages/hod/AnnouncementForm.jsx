@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import apiClient from "../../api/client";
+import Card from "../../components/Card";
+import StatusBadge from "../../components/StatusBadge";
+import { inputClass, labelClass, primaryButtonClass } from "../admin/academic/formStyles";
 
 const dateFormatter = new Intl.DateTimeFormat("en-IN", {
   day: "2-digit",
@@ -70,132 +73,88 @@ export default function AnnouncementForm() {
 
   return (
     <div>
-      <div className="mb-6 border-b border-brass/20 pb-4">
-        <h1 className="font-display text-2xl font-semibold text-ink">
-          Department Announcements
-        </h1>
-        <p className="mt-1 text-xs uppercase tracking-wide text-slate">
+      <div className="mb-6">
+        <h1 className="font-display text-2xl font-semibold text-ink">Department Announcements</h1>
+        <p className="mt-1 text-sm text-ink-secondary">
           Broadcast official announcements to department students and faculty
         </p>
       </div>
 
-      {/* New Announcement Form */}
-      <div className="max-w-xl mb-10">
-        <div className="mb-4 border-b border-brass/40 pb-1">
-          <span className="font-display text-xs uppercase tracking-widest text-brass">
-            New Broadcast
-          </span>
-        </div>
+      <div className="flex flex-col gap-6">
+        <Card title="New Broadcast">
+          <form onSubmit={handleSubmit} className="flex max-w-xl flex-col gap-5">
+            <label className="flex flex-col gap-1.5">
+              <span className={labelClass}>Announcement Message</span>
+              <textarea
+                rows={4}
+                maxLength={2000}
+                required
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Enter announcement text..."
+                className={inputClass}
+              />
+              <span className="text-right font-mono text-[11px] text-ink-muted">{message.length} / 2000</span>
+            </label>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-          <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium uppercase tracking-wide text-slate">
-              Announcement Message
-            </span>
-            <textarea
-              rows={4}
-              maxLength={2000}
-              required
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="Enter announcement text..."
-              className="border border-brass/30 bg-transparent p-3 text-sm text-ink outline-none focus:border-oxblood rounded-[3px]"
-            />
-            <span className="text-right text-[11px] text-slate font-mono">
-              {message.length} / 2000
-            </span>
-          </label>
+            <div className="flex flex-col gap-2">
+              <span className={labelClass}>Target Audience</span>
+              <div className="flex flex-col gap-2.5">
+                {AUDIENCE_OPTIONS.map((opt) => (
+                  <label key={opt.value} className="flex cursor-pointer select-none items-start gap-3">
+                    <input
+                      type="radio"
+                      name="audience"
+                      value={opt.value}
+                      checked={audience === opt.value}
+                      onChange={(e) => setAudience(e.target.value)}
+                      className="mt-0.5 cursor-pointer accent-accent"
+                    />
+                    <div>
+                      <span className="block text-sm font-medium text-ink">{opt.label}</span>
+                      <span className="text-xs text-ink-muted">{opt.desc}</span>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
 
-          <div className="flex flex-col gap-2">
-            <span className="text-xs font-medium uppercase tracking-wide text-slate">
-              Target Audience
-            </span>
-            <div className="flex flex-col gap-2.5">
-              {AUDIENCE_OPTIONS.map((opt) => (
-                <label
-                  key={opt.value}
-                  className="flex items-start gap-3 cursor-pointer select-none"
-                >
-                  <input
-                    type="radio"
-                    name="audience"
-                    value={opt.value}
-                    checked={audience === opt.value}
-                    onChange={(e) => setAudience(e.target.value)}
-                    className="mt-0.5 accent-oxblood cursor-pointer"
-                  />
-                  <div>
-                    <span className="text-sm font-medium text-ink block">
-                      {opt.label}
+            <button type="submit" disabled={submitting || !message.trim()} className={`${primaryButtonClass} mt-1 w-fit`}>
+              {submitting ? "Broadcasting…" : "Broadcast Announcement"}
+            </button>
+
+            {feedback && (
+              <p className={`text-xs ${feedback.tone === "success" ? "text-ink-secondary" : "text-danger"}`}>
+                {feedback.text}
+              </p>
+            )}
+          </form>
+        </Card>
+
+        <Card title="Broadcast History">
+          {loadingHistory ? (
+            <p className="text-sm text-ink-secondary">Loading history…</p>
+          ) : announcements.length === 0 ? (
+            <p className="text-sm text-ink-secondary">No announcements sent yet from your department.</p>
+          ) : (
+            <div className="flex flex-col divide-y divide-border">
+              {announcements.map((item) => (
+                <div key={item.id} className="flex flex-col gap-1.5 py-3.5 first:pt-0 last:pb-0">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <StatusBadge status={item.audience} variant="neutral" />
+                      <span className="text-xs text-ink-muted">By {item.authorName}</span>
+                    </div>
+                    <span className="font-mono text-xs text-ink-muted">
+                      {dateFormatter.format(new Date(item.createdAt))}
                     </span>
-                    <span className="text-xs text-slate">{opt.desc}</span>
                   </div>
-                </label>
+                  <p className="whitespace-pre-wrap text-sm text-ink">{item.message}</p>
+                </div>
               ))}
             </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={submitting || !message.trim()}
-            className="w-fit rounded bg-oxblood px-5 py-2.5 text-sm font-medium text-paper transition-opacity hover:opacity-90 disabled:opacity-50 mt-2"
-          >
-            {submitting ? "Broadcasting…" : "Broadcast Announcement"}
-          </button>
-
-          {feedback && (
-            <p
-              className={`text-xs mt-1 ${
-                feedback.tone === "success" ? "text-slate" : "text-oxblood"
-              }`}
-            >
-              {feedback.text}
-            </p>
           )}
-        </form>
-      </div>
-
-      {/* Broadcast History */}
-      <div className="max-w-3xl">
-        <div className="mb-2 border-b border-brass/40 pb-1 flex items-center justify-between">
-          <span className="font-display text-xs uppercase tracking-widest text-brass">
-            Broadcast History
-          </span>
-        </div>
-
-        {loadingHistory ? (
-          <p className="py-3 text-sm text-slate">Loading history…</p>
-        ) : announcements.length === 0 ? (
-          <p className="py-3 text-sm text-slate">
-            No announcements sent yet from your department.
-          </p>
-        ) : (
-          <div className="flex flex-col">
-            {announcements.map((item) => (
-              <div
-                key={item.id}
-                className="border-b border-brass/10 py-3.5 flex flex-col gap-1.5"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono text-xs uppercase font-medium text-oxblood bg-card px-2 py-0.5 border border-brass/20 rounded-[3px]">
-                      {item.audience}
-                    </span>
-                    <span className="text-xs text-slate">
-                      By {item.authorName}
-                    </span>
-                  </div>
-                  <span className="font-mono text-xs text-slate">
-                    {dateFormatter.format(new Date(item.createdAt))}
-                  </span>
-                </div>
-                <p className="text-sm text-ink whitespace-pre-wrap">
-                  {item.message}
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
+        </Card>
       </div>
     </div>
   );

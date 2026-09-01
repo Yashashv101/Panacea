@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import apiClient from "../../api/client";
 import PdfViewer from "../../components/PdfViewer";
+import Card from "../../components/Card";
+import StatusBadge from "../../components/StatusBadge";
 
 /**
  * HOD subject detail page.
@@ -31,54 +33,42 @@ export default function HodSubjectDetail() {
 
   return (
     <div>
-      <div className="mb-6 border-b border-brass/20 pb-4">
-        <Link
-          to="/hod/subjects"
-          className="mb-2 block text-xs uppercase tracking-wide text-slate hover:text-oxblood"
-        >
+      <div className="mb-6">
+        <Link to="/hod/subjects" className="mb-2 block text-xs font-medium text-accent hover:underline">
           ← Subjects
         </Link>
-        <h1 className="font-display text-2xl font-semibold text-ink">
-          {subject ? subject.name : "Loading…"}
-        </h1>
+        <h1 className="font-display text-2xl font-semibold text-ink">{subject ? subject.name : "Loading…"}</h1>
       </div>
 
-      {error && <p className="text-sm text-oxblood">{error}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
 
       {subject && (
-        <div className="flex flex-col gap-8 max-w-4xl">
-          {/* Metadata Section */}
-          <div className="max-w-xl flex flex-col">
-            <div className="flex items-center justify-between border-b border-brass/20 py-3">
-              <span className="text-sm text-ink">Credits</span>
-              <span className="font-mono text-sm text-ink">{subject.credits}</span>
+        <div className="flex max-w-4xl flex-col gap-6">
+          <Card title="Details">
+            <div className="flex flex-col divide-y divide-border">
+              <div className="flex items-center justify-between py-2.5 first:pt-0">
+                <span className="text-sm text-ink-secondary">Credits</span>
+                <span className="font-mono text-sm text-ink">{subject.credits}</span>
+              </div>
+              <div className="flex items-center justify-between py-2.5">
+                <span className="text-sm text-ink-secondary">Type</span>
+                <span className="font-mono text-sm text-ink">{subject.type}</span>
+              </div>
+              <div className="flex items-center justify-between py-2.5">
+                <span className="text-sm text-ink-secondary">Primary Staff</span>
+                <span className="text-sm text-ink">{subject.primaryStaffName ?? "—"}</span>
+              </div>
+              <div className="flex items-center justify-between py-2.5 last:pb-0">
+                <span className="text-sm text-ink-secondary">Syllabus Status</span>
+                <StatusBadge
+                  status={subject.syllabusUploaded ? "UPLOADED" : "PENDING"}
+                  variant={subject.syllabusUploaded ? "positive" : "pending"}
+                />
+              </div>
             </div>
-            <div className="flex items-center justify-between border-b border-brass/20 py-3">
-              <span className="text-sm text-ink">Type</span>
-              <span className="font-mono text-sm text-slate">{subject.type}</span>
-            </div>
-            <div className="flex items-center justify-between border-b border-brass/20 py-3">
-              <span className="text-sm text-ink">Primary Staff</span>
-              <span className="text-sm text-slate">
-                {subject.primaryStaffName ?? "—"}
-              </span>
-            </div>
-            <div className="flex items-center justify-between border-b border-brass/20 py-3">
-              <span className="text-sm text-ink">Syllabus Status</span>
-              <span className="font-mono text-xs text-slate">
-                {subject.syllabusUploaded ? "Uploaded" : "Not yet uploaded"}
-              </span>
-            </div>
-          </div>
+          </Card>
 
-          {/* Embedded Syllabus PDF Viewer */}
-          <div className="flex flex-col gap-3">
-            <div className="border-b border-brass/40 pb-1">
-              <span className="font-display text-xs uppercase tracking-widest text-brass">
-                Course Syllabus
-              </span>
-            </div>
-
+          <Card title="Course Syllabus">
             {subject.syllabusUploaded ? (
               <PdfViewer
                 url={`/subjects/${subjectId}/syllabus`}
@@ -87,11 +77,9 @@ export default function HodSubjectDetail() {
                 minHeight="800px"
               />
             ) : (
-              <p className="py-4 text-sm text-slate">
-                No syllabus PDF has been uploaded for this subject yet.
-              </p>
+              <p className="text-sm text-ink-secondary">No syllabus PDF has been uploaded for this subject yet.</p>
             )}
-          </div>
+          </Card>
         </div>
       )}
     </div>

@@ -1,48 +1,43 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import apiClient from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
-
-function SectionHeader({ title }) {
-  return (
-    <div className="mb-1 mt-6 border-b border-brass/40 pb-1 first:mt-0">
-      <span className="font-display text-xs uppercase tracking-widest text-brass">
-        {title}
-      </span>
-    </div>
-  );
-}
-
-function SubjectRow({ subject }) {
-  const navigate = useNavigate();
-  return (
-    <button
-      type="button"
-      onClick={() => navigate(`/hod/subjects/${subject.id}`)}
-      className="flex w-full items-center justify-between border-b border-brass/10 py-3 text-left transition-colors hover:bg-card"
-    >
-      <span className="text-sm text-ink">{subject.name}</span>
-      <div className="flex items-center gap-6">
-        {subject.primaryStaffName && (
-          <span className="text-xs text-slate">{subject.primaryStaffName}</span>
-        )}
-        <span className="font-mono text-sm text-slate">
-          {subject.credits} cr
-        </span>
-      </div>
-    </button>
-  );
-}
+import MetricCard from "../../components/MetricCard";
+import Card from "../../components/Card";
+import { tableWrapClass, theadRowClass, thClass, tdClass, trClass } from "../admin/academic/formStyles";
+import { BookOpen, BookMarked, ListTree } from "lucide-react";
 
 function SubjectTable({ subjects, emptyMessage }) {
+  const navigate = useNavigate();
+
   if (subjects.length === 0) {
-    return <p className="py-4 text-sm text-slate">{emptyMessage}</p>;
+    return <p className="py-3 text-sm text-ink-secondary">{emptyMessage}</p>;
   }
+
   return (
-    <div className="flex flex-col">
-      {subjects.map((s) => (
-        <SubjectRow key={s.id} subject={s} />
-      ))}
+    <div className={tableWrapClass}>
+      <table className="w-full text-left text-sm">
+        <thead>
+          <tr className={theadRowClass}>
+            <th className={thClass}>Subject</th>
+            <th className={thClass}>Primary Staff</th>
+            <th className={`${thClass} text-right`}>Credits</th>
+          </tr>
+        </thead>
+        <tbody>
+          {subjects.map((s) => (
+            <tr
+              key={s.id}
+              onClick={() => navigate(`/hod/subjects/${s.id}`)}
+              className={`${trClass} cursor-pointer`}
+            >
+              <td className={`${tdClass} font-medium`}>{s.name}</td>
+              <td className={`${tdClass} text-ink-secondary`}>{s.primaryStaffName ?? "—"}</td>
+              <td className={`${tdClass} text-right font-mono`}>{s.credits}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -86,34 +81,30 @@ export default function HodSubjects() {
 
   return (
     <div>
-      <div className="mb-6 border-b border-brass/20 pb-4">
-        <h1 className="font-display text-2xl font-semibold text-ink">
-          Subjects
-        </h1>
-        <p className="mt-1 text-xs uppercase tracking-wide text-slate">
-          Department subject catalogue
-        </p>
+      <div className="mb-6">
+        <h1 className="font-display text-2xl font-semibold text-ink">Subjects</h1>
+        <p className="mt-1 text-sm text-ink-secondary">Department subject catalogue</p>
       </div>
 
-      {error && <p className="text-sm text-oxblood">{error}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
 
-      {!subjects && !error && (
-        <p className="text-sm text-slate">Loading…</p>
-      )}
+      {!subjects && !error && <p className="text-sm text-ink-secondary">Loading…</p>}
 
       {subjects && (
-        <div className="max-w-2xl">
-          <SectionHeader title="Core" />
-          <SubjectTable
-            subjects={core}
-            emptyMessage="No core subjects found for this department."
-          />
+        <div className="flex flex-col gap-6">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <MetricCard label="Total Subjects" value={subjects.length} icon={BookOpen} />
+            <MetricCard label="Core" value={core.length} icon={BookMarked} />
+            <MetricCard label="Elective" value={elective.length} icon={ListTree} />
+          </div>
 
-          <SectionHeader title="Elective" />
-          <SubjectTable
-            subjects={elective}
-            emptyMessage="No elective subjects found for this department."
-          />
+          <Card title="Core">
+            <SubjectTable subjects={core} emptyMessage="No core subjects found for this department." />
+          </Card>
+
+          <Card title="Elective">
+            <SubjectTable subjects={elective} emptyMessage="No elective subjects found for this department." />
+          </Card>
         </div>
       )}
     </div>

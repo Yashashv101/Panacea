@@ -10,6 +10,7 @@ import com.example.Panacea.academic.entity.SubjectStaffAssignment;
 import com.example.Panacea.academic.repository.SectionRepository;
 import com.example.Panacea.academic.repository.SubjectRepository;
 import com.example.Panacea.academic.repository.SubjectStaffAssignmentRepository;
+import com.example.Panacea.academic.security.SubjectOwnershipGuard;
 import com.example.Panacea.audit.service.AuditLogService;
 import com.example.Panacea.identity.entity.Role;
 import com.example.Panacea.identity.entity.User;
@@ -37,6 +38,7 @@ public class SubjectStaffAssignmentService {
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
     private final HodScopeResolver hodScopeResolver;
+    private final SubjectOwnershipGuard subjectOwnershipGuard;
 
     @Transactional
     public List<SubjectStaffAssignmentResponse> assignStaff(SubjectStaffAssignmentRequest request, Long actorId) {
@@ -46,17 +48,7 @@ public class SubjectStaffAssignmentService {
         Subject subject = subjectRepository.findById(request.subjectId())
                 .orElseThrow(() -> new EntityNotFoundException("Subject " + request.subjectId() + " not found"));
 
-        // HOD scope check
-        if (actor.getRole() == Role.HOD) {
-            Course scopeCourse = hodScopeResolver.resolveScopeCourse(actor);
-            if (scopeCourse != null) {
-                boolean subjectInCourse = subject.getCourses().stream()
-                        .anyMatch(c -> c.getId().equals(scopeCourse.getId()));
-                if (!subjectInCourse) {
-                    hodScopeResolver.requireCourseAccess(actor, scopeCourse.getId() + 999999L); // trigger 403 AccessDenied
-                }
-            }
-        }
+        hodScopeResolver.requireCourseAccess(actor, subject.getCourses());
 
         User staff = userRepository.findById(request.staffId())
                 .orElseThrow(() -> new EntityNotFoundException("Staff " + request.staffId() + " not found"));
@@ -64,15 +56,7 @@ public class SubjectStaffAssignmentService {
             throw new IllegalArgumentException("User " + request.staffId() + " is not a staff member");
         }
 
-        if (staff.getStaffCourse() != null && !subject.getCourses().isEmpty()) {
-            boolean matches = subject.getCourses().stream()
-                    .anyMatch(c -> c.getId().equals(staff.getStaffCourse().getId()));
-            if (!matches) {
-                throw new IllegalArgumentException("Staff member " + staff.getFirstName() + " " + staff.getLastName() +
-                        " belongs to department " + staff.getStaffCourse().getName() +
-                        " and cannot be assigned to subject " + subject.getName());
-            }
-        }
+        subjectOwnershipGuard.requireSameDepartment(staff, subject.getCourses(), subject.getName(), "assigned to");
 
         List<SubjectStaffAssignmentResponse> results = new ArrayList<>();
 
@@ -116,16 +100,7 @@ public class SubjectStaffAssignmentService {
         SubjectStaffAssignment assignment = assignmentRepository.findById(assignmentId)
                 .orElseThrow(() -> new EntityNotFoundException("Assignment " + assignmentId + " not found"));
 
-        if (actor.getRole() == Role.HOD) {
-            Course scopeCourse = hodScopeResolver.resolveScopeCourse(actor);
-            if (scopeCourse != null) {
-                boolean subjectInCourse = assignment.getSubject().getCourses().stream()
-                        .anyMatch(c -> c.getId().equals(scopeCourse.getId()));
-                if (!subjectInCourse) {
-                    hodScopeResolver.requireCourseAccess(actor, scopeCourse.getId() + 999999L);
-                }
-            }
-        }
+        hodScopeResolver.requireCourseAccess(actor, assignment.getSubject().getCourses());
 
         assignmentRepository.delete(assignment);
         auditLogService.record(actor, "STAFF_UNASSIGN", "SubjectStaffAssignment", assignmentId,

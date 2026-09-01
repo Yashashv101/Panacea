@@ -78,7 +78,7 @@ public class FullResetSeeder implements CommandLineRunner {
     private static final int STUDENTS_PER_SECTION = 10;
 
     private static final List<String> TABLES_IN_TRUNCATE_ORDER = List.of(
-            "audit_logs", "attendance_reports", "attendances", "subject_courses", "subject_sections",
+            "reminders", "audit_logs", "attendance_reports", "attendances", "subject_courses", "subject_sections",
             "subject_staff_assignments",
             "quiz_question_options", "quiz_attempt_answers", "quiz_attempts", "quiz_questions", "quizzes",
             "student_results", "timetable_entries", "proctor_assignments", "elective_enrollment_requests",

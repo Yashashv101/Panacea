@@ -1,18 +1,19 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import apiClient from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
+import { useMyAssignedSubjects } from "../../hooks/useMyAssignedSubjects";
 import { inputClass, labelClass, primaryButtonClass, extractErrorMessage } from "../admin/academic/formStyles";
+import Card from "../../components/Card";
 
 const EMPTY_COMPONENTS = { test1: "", test2: "", experiential: "", see: "" };
 
 export default function EnterResults() {
   const { userId } = useAuth();
 
-  const [assignedSubjects, setAssignedSubjects] = useState([]);
   const [semesters, setSemesters] = useState([]);
+  const [semestersLoading, setSemestersLoading] = useState(true);
+  const [semestersError, setSemestersError] = useState(null);
   const [students, setStudents] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(null);
 
   const [subjectId, setSubjectId] = useState("");
   const [semesterId, setSemesterId] = useState("");
@@ -25,34 +26,35 @@ export default function EnterResults() {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState(null);
 
+  const {
+    assignedSubjects,
+    selectedSubject,
+    loading: subjectsLoading,
+    loadError: subjectsError,
+  } = useMyAssignedSubjects(subjectId, { errorMessage: "Could not load results data." });
+
+  const loading = subjectsLoading || semestersLoading;
+  const loadError = subjectsError || semestersError;
+
   useEffect(() => {
     let cancelled = false;
 
-    async function load() {
-      setLoading(true);
-      setLoadError(null);
-      try {
-        const [assignmentsRes, semestersRes] = await Promise.all([
-          apiClient.get("/academic/staff-assignments/me"),
-          apiClient.get("/semesters"),
-        ]);
-        if (cancelled) return;
-        setAssignedSubjects(assignmentsRes.data);
-        setSemesters(semestersRes.data);
-      } catch {
-        if (!cancelled) setLoadError("Could not load results data.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
+    apiClient
+      .get("/semesters")
+      .then((res) => {
+        if (!cancelled) setSemesters(res.data);
+      })
+      .catch(() => {
+        if (!cancelled) setSemestersError("Could not load results data.");
+      })
+      .finally(() => {
+        if (!cancelled) setSemestersLoading(false);
+      });
 
-    load();
     return () => {
       cancelled = true;
     };
   }, []);
-
-  const selectedSubject = assignedSubjects.find((s) => s.subjectId === Number(subjectId));
 
   function handleSubjectChange(value) {
     setSubjectId(value);
@@ -182,10 +184,10 @@ export default function EnterResults() {
   if (loading) {
     return (
       <div>
-        <div className="mb-6 border-b border-brass/20 pb-4">
+        <div className="mb-6">
           <h1 className="font-display text-2xl font-semibold text-ink">Enter Results</h1>
         </div>
-        <p className="text-sm text-slate">Loading…</p>
+        <p className="text-sm text-ink-secondary">Loading…</p>
       </div>
     );
   }
@@ -193,98 +195,102 @@ export default function EnterResults() {
   if (loadError) {
     return (
       <div>
-        <div className="mb-6 border-b border-brass/20 pb-4">
+        <div className="mb-6">
           <h1 className="font-display text-2xl font-semibold text-ink">Enter Results</h1>
         </div>
-        <p className="text-sm text-oxblood">{loadError}</p>
+        <p className="text-sm text-danger">{loadError}</p>
       </div>
     );
   }
 
   return (
     <div>
-      <div className="mb-6 border-b border-brass/20 pb-4">
+      <div className="mb-6">
         <h1 className="font-display text-2xl font-semibold text-ink">Enter Results</h1>
       </div>
 
       {assignedSubjects.length === 0 ? (
-        <p className="text-sm text-slate">
+        <p className="text-sm text-ink-secondary">
           You do not have any assigned subjects to enter results for.
         </p>
       ) : (
-        <form onSubmit={handleSubmit} className="flex max-w-2xl flex-col gap-8">
-          <div className="grid grid-cols-2 gap-5">
-            <label className="flex flex-col gap-1.5">
-              <span className={labelClass}>Subject</span>
-              <select
-                required
-                value={subjectId}
-                onChange={(e) => handleSubjectChange(e.target.value)}
-                className={inputClass}
-              >
-                <option value="" disabled>
-                  Select a subject
-                </option>
-                {assignedSubjects.map((subject) => (
-                  <option key={subject.subjectId} value={subject.subjectId}>
-                    {subject.subjectName} ({subject.type})
+        <form onSubmit={handleSubmit} className="flex max-w-2xl flex-col gap-6">
+          <Card title="Subject and student">
+            <div className="grid grid-cols-2 gap-5">
+              <label className="flex flex-col gap-1.5">
+                <span className={labelClass}>Subject</span>
+                <select
+                  required
+                  value={subjectId}
+                  onChange={(e) => handleSubjectChange(e.target.value)}
+                  className={inputClass}
+                >
+                  <option value="" disabled>
+                    Select a subject
                   </option>
-                ))}
-              </select>
-            </label>
+                  {assignedSubjects.map((subject) => (
+                    <option key={subject.subjectId} value={subject.subjectId}>
+                      {subject.subjectName} ({subject.type})
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-            <label className="flex flex-col gap-1.5">
-              <span className={labelClass}>Semester</span>
-              <select
-                required
-                disabled={!selectedSubject}
-                value={semesterId}
-                onChange={(e) => setSemesterId(e.target.value)}
-                className={inputClass}
-              >
-                <option value="" disabled>
-                  {selectedSubject ? "Select a semester" : "Select a subject first"}
-                </option>
-                {semesters.map((semester) => (
-                  <option key={semester.id} value={semester.id}>
-                    Sem {semester.number} — {semester.label}
+              <label className="flex flex-col gap-1.5">
+                <span className={labelClass}>Semester</span>
+                <select
+                  required
+                  disabled={!selectedSubject}
+                  value={semesterId}
+                  onChange={(e) => setSemesterId(e.target.value)}
+                  className={inputClass}
+                >
+                  <option value="" disabled>
+                    {selectedSubject ? "Select a semester" : "Select a subject first"}
                   </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <label className="flex flex-col gap-1.5">
-            <span className={labelClass}>Student</span>
-            <select
-              required
-              value={studentId}
-              onChange={(e) => setStudentId(e.target.value)}
-              className={inputClass}
-            >
-              <option value="" disabled>
-                Select a student
-              </option>
-              {students.map((student) => (
-                <option key={student.id} value={student.id}>
-                  {student.firstName} {student.lastName}
-                </option>
-              ))}
-            </select>
-            {selectedSubject && students.length === 0 && (
-              <span className="text-xs text-slate">No students are enrolled in this subject's section.</span>
-            )}
-          </label>
-
-          <section>
-            <div className="mb-4 flex items-baseline justify-between border-b border-brass/20 pb-2">
-              <h2 className="font-display text-lg font-semibold text-ink">Components</h2>
-              {lookingUp && <span className="text-xs text-slate">Checking for an existing result…</span>}
-              {!lookingUp && existingResult && (
-                <span className="text-xs text-slate">Editing an existing result</span>
-              )}
+                  {semesters.map((semester) => (
+                    <option key={semester.id} value={semester.id}>
+                      Sem {semester.number} — {semester.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
 
+            <label className="mt-5 flex flex-col gap-1.5">
+              <span className={labelClass}>Student</span>
+              <select
+                required
+                value={studentId}
+                onChange={(e) => setStudentId(e.target.value)}
+                className={inputClass}
+              >
+                <option value="" disabled>
+                  Select a student
+                </option>
+                {students.map((student) => (
+                  <option key={student.id} value={student.id}>
+                    {student.firstName} {student.lastName}
+                  </option>
+                ))}
+              </select>
+              {selectedSubject && students.length === 0 && (
+                <span className="text-xs text-ink-muted">No students are enrolled in this subject's section.</span>
+              )}
+            </label>
+          </Card>
+
+          <Card
+            title="Components"
+            action={
+              <>
+                {lookingUp && <span className="text-xs text-ink-muted">Checking for an existing result…</span>}
+                {!lookingUp && existingResult && (
+                  <span className="text-xs text-ink-muted">Editing an existing result</span>
+                )}
+              </>
+            }
+          >
             <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
               <label className="flex flex-col gap-1.5">
                 <span className={labelClass}>Test 1 (/25)</span>
@@ -337,18 +343,18 @@ export default function EnterResults() {
                 />
               </label>
             </div>
-            <p className="mt-3 text-xs text-slate">
+            <p className="mt-3 text-xs text-ink-muted">
               The quiz component is sourced automatically from the student's most recent MCQ attempt for this subject.
             </p>
-          </section>
+          </Card>
 
           {message && (
-            <p className={`text-sm ${message.tone === "success" ? "text-slate" : "text-oxblood"}`}>
+            <p className={`text-sm ${message.tone === "success" ? "text-ink-secondary" : "text-danger"}`}>
               {message.text}
             </p>
           )}
 
-          <button type="submit" disabled={submitting || !canSubmit} className={primaryButtonClass}>
+          <button type="submit" disabled={submitting || !canSubmit} className={`${primaryButtonClass} w-fit`}>
             {submitting ? "Saving…" : existingResult ? "Update result" : "Save result"}
           </button>
         </form>

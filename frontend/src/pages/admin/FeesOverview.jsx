@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
+import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
+import { Doughnut } from "react-chartjs-2";
 import apiClient from "../../api/client";
-import StatusStamp from "../../components/StatusStamp";
+import StatusBadge from "../../components/StatusBadge";
+import MetricCard from "../../components/MetricCard";
+import Card from "../../components/Card";
+import { tableWrapClass, theadRowClass, thClass, tdClass, trClass } from "./academic/formStyles";
 import FeeStructuresSection from "./FeeStructuresSection";
+import { Wallet, Clock, XCircle, Receipt } from "lucide-react";
+
+ChartJS.register(ArcElement, Tooltip, Legend);
 
 const STATUS_FILTERS = ["PENDING", "PAID", "FAILED", "ALL"];
 
@@ -13,6 +21,50 @@ const currencyFormatter = new Intl.NumberFormat("en-IN", {
 
 function formatDate(isoString) {
   return new Date(isoString).toISOString().slice(0, 10);
+}
+
+function FeeBreakdownChart({ collected, pending, failed }) {
+  const total = collected + pending + failed;
+  if (total === 0) return null;
+
+  const data = {
+    labels: ["Collected", "Pending", "Failed"],
+    datasets: [
+      {
+        data: [collected, pending, failed],
+        backgroundColor: ["#16A34A", "#D97706", "#DC2626"],
+        borderColor: "#FFFFFF",
+        borderWidth: 2,
+      },
+    ],
+  };
+
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: "65%",
+    plugins: {
+      legend: {
+        position: "right",
+        labels: { color: "#475467", boxWidth: 12, padding: 16, font: { size: 12 } },
+      },
+      tooltip: {
+        callbacks: {
+          label: (ctx) => `${ctx.label}: ${currencyFormatter.format(ctx.parsed)}`,
+        },
+      },
+    },
+  };
+
+  const ariaLabel = `Fee breakdown: Collected ${currencyFormatter.format(collected)}, Pending ${currencyFormatter.format(
+    pending
+  )}, Failed ${currencyFormatter.format(failed)}`;
+
+  return (
+    <div role="img" aria-label={ariaLabel} className="h-64 w-full">
+      <Doughnut data={data} options={options} />
+    </div>
+  );
 }
 
 export default function FeesOverview() {
@@ -60,88 +112,120 @@ export default function FeesOverview() {
   );
 
   const totals = useMemo(() => {
-    const collected = payments
-      .filter((p) => p.status === "PAID")
-      .reduce((sum, p) => sum + p.amount, 0);
-    const pending = payments
-      .filter((p) => p.status === "PENDING")
-      .reduce((sum, p) => sum + p.amount, 0);
-    return { collected, pending };
+    const collected = payments.filter((p) => p.status === "PAID").reduce((sum, p) => sum + p.amount, 0);
+    const pending = payments.filter((p) => p.status === "PENDING").reduce((sum, p) => sum + p.amount, 0);
+    const failed = payments.filter((p) => p.status === "FAILED").reduce((sum, p) => sum + p.amount, 0);
+    return { collected, pending, failed };
   }, [payments]);
 
   const visiblePayments = statusFilter === "ALL" ? payments : payments.filter((p) => p.status === statusFilter);
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between border-b border-brass/20 pb-4">
+      <div className="mb-6">
         <h1 className="font-display text-2xl font-semibold text-ink">Fees Overview</h1>
-        <div className="flex items-center gap-1">
-          {STATUS_FILTERS.map((filter) => (
-            <button
-              key={filter}
-              type="button"
-              onClick={() => setStatusFilter(filter)}
-              className={`rounded px-3 py-1.5 text-xs font-medium uppercase tracking-wide transition-colors ${
-                statusFilter === filter ? "bg-card text-oxblood" : "text-slate hover:text-ink"
-              }`}
-            >
-              {filter}
-            </button>
-          ))}
-        </div>
       </div>
 
       {loading ? (
-        <p className="text-sm text-slate">Loading…</p>
+        <p className="text-sm text-ink-secondary">Loading…</p>
       ) : loadError ? (
-        <p className="text-sm text-oxblood">{loadError}</p>
+        <p className="text-sm text-danger">{loadError}</p>
       ) : (
         <>
-          <FeeStructuresSection
-            feeStructures={feeStructures}
-            setFeeStructures={setFeeStructures}
-            courses={courses}
-            semesters={semesters}
-          />
-
-          <div className="mb-6 flex items-center gap-8 border-b border-brass/20 pb-4">
-            <div>
-              <div className="text-xs font-medium uppercase tracking-wide text-slate">Collected</div>
-              <div className="font-mono text-lg text-ink">{currencyFormatter.format(totals.collected)}</div>
-            </div>
-            <div>
-              <div className="text-xs font-medium uppercase tracking-wide text-slate">Pending</div>
-              <div className="font-mono text-lg text-ink">{currencyFormatter.format(totals.pending)}</div>
-            </div>
+          <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <MetricCard
+              label="Collected"
+              value={totals.collected}
+              formatValue={(v) => currencyFormatter.format(v)}
+              icon={Wallet}
+              tone="success"
+            />
+            <MetricCard
+              label="Pending"
+              value={totals.pending}
+              formatValue={(v) => currencyFormatter.format(v)}
+              icon={Clock}
+              tone={totals.pending > 0 ? "warning" : "default"}
+            />
+            <MetricCard
+              label="Failed"
+              value={totals.failed}
+              formatValue={(v) => currencyFormatter.format(v)}
+              icon={XCircle}
+              tone={totals.failed > 0 ? "danger" : "default"}
+            />
+            <MetricCard label="Total Payments" value={payments.length} icon={Receipt} />
           </div>
 
-          {visiblePayments.length === 0 ? (
-            <p className="border-b border-brass/20 py-3 text-sm text-slate">No fee payments.</p>
-          ) : (
-            <div className="flex flex-col">
-              {visiblePayments.map((payment) => (
-                <div key={payment.id} className="flex items-center justify-between border-b border-brass/20 py-3">
-                  <div>
-                    <div className="flex items-center gap-4">
-                      <span className="text-sm text-ink">{payment.studentName}</span>
-                      <StatusStamp status={payment.status} />
-                    </div>
-                    <p className="mt-1 text-xs text-slate">
-                      {courseNameById.get(payment.courseId) ?? `Course ${payment.courseId}`}
-                      {" · "}
-                      {semesterLabelById.get(payment.semesterId) ?? `Semester ${payment.semesterId}`}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-6">
-                    <span className="font-mono text-sm text-slate">{formatDate(payment.createdAt)}</span>
-                    <span className="w-28 text-right font-mono text-sm text-ink">
-                      {currencyFormatter.format(payment.amount)}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
+          {(totals.collected > 0 || totals.pending > 0 || totals.failed > 0) && (
+            <Card title="Collection breakdown" className="mb-6">
+              <FeeBreakdownChart collected={totals.collected} pending={totals.pending} failed={totals.failed} />
+            </Card>
           )}
+
+          <div className="mb-6">
+            <FeeStructuresSection
+              feeStructures={feeStructures}
+              setFeeStructures={setFeeStructures}
+              courses={courses}
+              semesters={semesters}
+            />
+          </div>
+
+          <Card
+            title="Payments"
+            action={
+              <div className="flex items-center gap-1">
+                {STATUS_FILTERS.map((filter) => (
+                  <button
+                    key={filter}
+                    type="button"
+                    onClick={() => setStatusFilter(filter)}
+                    className={`rounded px-3 py-1.5 text-xs font-medium transition-colors duration-150 ease-out ${
+                      statusFilter === filter ? "bg-accent-soft text-accent" : "text-ink-secondary hover:text-ink"
+                    }`}
+                  >
+                    {filter}
+                  </button>
+                ))}
+              </div>
+            }
+          >
+            {visiblePayments.length === 0 ? (
+              <p className="py-3 text-sm text-ink-secondary">No fee payments.</p>
+            ) : (
+              <div className={`${tableWrapClass} max-h-[32rem] overflow-y-auto`}>
+                <table className="w-full text-left text-sm">
+                  <thead className="sticky top-0 z-10">
+                    <tr className={theadRowClass}>
+                      <th className={thClass}>Student</th>
+                      <th className={thClass}>Course / Semester</th>
+                      <th className={thClass}>Status</th>
+                      <th className={thClass}>Date</th>
+                      <th className={`${thClass} text-right`}>Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visiblePayments.map((payment) => (
+                      <tr key={payment.id} className={trClass}>
+                        <td className={`${tdClass} font-medium`}>{payment.studentName}</td>
+                        <td className={`${tdClass} text-ink-secondary`}>
+                          {courseNameById.get(payment.courseId) ?? `Course ${payment.courseId}`}
+                          {" · "}
+                          {semesterLabelById.get(payment.semesterId) ?? `Semester ${payment.semesterId}`}
+                        </td>
+                        <td className={tdClass}>
+                          <StatusBadge status={payment.status} />
+                        </td>
+                        <td className={`${tdClass} font-mono text-xs`}>{formatDate(payment.createdAt)}</td>
+                        <td className={`${tdClass} text-right font-mono`}>{currencyFormatter.format(payment.amount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
         </>
       )}
     </div>

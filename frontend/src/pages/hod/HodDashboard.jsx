@@ -1,21 +1,17 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import apiClient from "../../api/client";
-import UpcomingCalendar from "../../components/UpcomingCalendar";
+import DashboardCalendarSidebar from "../../components/DashboardCalendarSidebar";
+import MetricCard from "../../components/MetricCard";
+import { Users, GraduationCap, Clock, MessageSquare } from "lucide-react";
 
-function Row({ label, value, to }) {
-  const content = (
-    <div className="flex items-center justify-between border-b border-brass/20 py-4">
-      <span className="text-sm text-ink">{label}</span>
-      <span className="font-mono text-lg text-ink">{value}</span>
-    </div>
-  );
+function MetricLink({ to, children }) {
   return to ? (
-    <Link to={to} className="block transition-colors hover:bg-card">
-      {content}
+    <Link to={to} className="block rounded-lg transition-transform duration-150 ease-out hover:-translate-y-0.5">
+      {children}
     </Link>
   ) : (
-    content
+    children
   );
 }
 
@@ -59,24 +55,42 @@ export default function HodDashboard() {
 
   return (
     <div>
-      <div className="mb-6 border-b border-brass/20 pb-4">
+      <div className="mb-6">
         <h1 className="font-display text-2xl font-semibold text-ink">HOD Dashboard</h1>
       </div>
 
-      <UpcomingCalendar />
-
-      {loading ? (
-        <p className="text-sm text-slate">Loading…</p>
-      ) : loadError ? (
-        <p className="text-sm text-oxblood">{loadError}</p>
-      ) : (
-        <div className="flex max-w-xl flex-col">
-          <Row label="Staff in your department" value={counts.staff} />
-          <Row label="Students in your department" value={counts.students} />
-          <Row label="Pending leave requests" value={counts.pendingLeave} to="/hod/leave" />
-          <Row label="Open feedback items" value={counts.openFeedback} to="/hod/feedback" />
+      <div className="flex flex-col items-start gap-6 lg:flex-row">
+        <div className="w-full min-w-0 flex-1">
+          {loading ? (
+            <p className="text-sm text-ink-secondary">Loading…</p>
+          ) : loadError ? (
+            <p className="text-sm text-danger">{loadError}</p>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <MetricCard label="Staff in your department" value={counts.staff} icon={Users} />
+              <MetricCard label="Students in your department" value={counts.students} icon={GraduationCap} />
+              <MetricLink to="/hod/leave">
+                <MetricCard
+                  label="Pending leave requests"
+                  value={counts.pendingLeave}
+                  icon={Clock}
+                  tone={counts.pendingLeave > 0 ? "warning" : "default"}
+                />
+              </MetricLink>
+              <MetricLink to="/hod/feedback">
+                <MetricCard
+                  label="Open feedback items"
+                  value={counts.openFeedback}
+                  icon={MessageSquare}
+                  tone={counts.openFeedback > 0 ? "warning" : "default"}
+                />
+              </MetricLink>
+            </div>
+          )}
         </div>
-      )}
+
+        <DashboardCalendarSidebar />
+      </div>
     </div>
   );
 }

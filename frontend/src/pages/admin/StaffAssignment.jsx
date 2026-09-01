@@ -1,12 +1,21 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import apiClient from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
-
-const inputClass =
-  "border-0 border-b border-brass/40 bg-transparent px-0 py-2 text-sm text-ink outline-none focus:border-oxblood";
-const labelClass = "text-xs font-medium uppercase tracking-wide text-slate";
-const primaryButtonClass =
-  "w-fit rounded bg-oxblood px-5 py-2.5 text-sm font-medium text-paper transition-opacity hover:opacity-90 disabled:opacity-50";
+import {
+  inputClass,
+  labelClass,
+  primaryButtonClass,
+  dangerActionClass,
+  tableWrapClass,
+  theadRowClass,
+  thClass,
+  tdClass,
+  trClass,
+  folioClass,
+} from "./academic/formStyles";
+import MetricCard from "../../components/MetricCard";
+import Card from "../../components/Card";
+import { BookOpen, Users, Grid3x3, UserCog } from "lucide-react";
 
 function extractErrorMessage(err, fallback) {
   const status = err.response?.status;
@@ -141,6 +150,16 @@ export default function StaffAssignment() {
     }
   }
 
+  const assignmentsByCourse = useMemo(
+    () =>
+      assignments.reduce((acc, a) => {
+        const label = a.courseName ?? "Unassigned department";
+        (acc[label] ??= []).push(a);
+        return acc;
+      }, {}),
+    [assignments]
+  );
+
   const filteredStaff = staff.filter((member) => {
     if (!selectedSubject || !selectedSubject.courseIds || selectedSubject.courseIds.length === 0) {
       return true;
@@ -151,23 +170,28 @@ export default function StaffAssignment() {
 
   return (
     <div>
-      <div className="mb-6 border-b border-brass/20 pb-4">
+      <div className="mb-6">
         <h1 className="font-display text-2xl font-semibold text-ink">Staff Assignment</h1>
-        <p className="mt-1 text-sm text-slate">
+        <p className="mt-1 text-sm text-ink-secondary">
           Assign staff members to teach subjects per section (1 to N staff per subject).
         </p>
       </div>
 
       {loading ? (
-        <p className="text-sm text-slate">Loading…</p>
+        <p className="text-sm text-ink-secondary">Loading…</p>
       ) : loadError ? (
-        <p className="text-sm text-oxblood">{loadError}</p>
+        <p className="text-sm text-danger">{loadError}</p>
       ) : (
         <>
-          {canAssign && (
-            <section className="mb-8 border-b border-brass/20 pb-8">
-              <h2 className="mb-4 font-display text-lg font-semibold text-ink">Assign teacher to section(s)</h2>
+          <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <MetricCard label="Subjects" value={subjects.length} icon={BookOpen} />
+            <MetricCard label="Staff" value={staff.length} icon={Users} />
+            <MetricCard label="Sections" value={sections.length} icon={Grid3x3} />
+            <MetricCard label="Assignments" value={assignments.length} icon={UserCog} />
+          </div>
 
+          {canAssign && (
+            <Card title="Assign teacher to section(s)" className="mb-6">
               <form onSubmit={handleAssign} className="flex max-w-2xl flex-col gap-5">
                 <div className="grid grid-cols-2 gap-5">
                   <label className="flex flex-col gap-1.5">
@@ -206,7 +230,8 @@ export default function StaffAssignment() {
                       </option>
                       {filteredStaff.map((member) => (
                         <option key={member.id} value={member.id}>
-                          {member.firstName} {member.lastName} {member.staffCourseName ? `(${member.staffCourseName})` : `(${member.email})`}
+                          {member.firstName} {member.lastName}{" "}
+                          {member.staffCourseName ? `(${member.staffCourseName})` : `(${member.email})`}
                         </option>
                       ))}
                     </select>
@@ -221,7 +246,7 @@ export default function StaffAssignment() {
                         <button
                           type="button"
                           onClick={handleSelectAllSections}
-                          className="text-xs uppercase font-medium tracking-wide text-oxblood hover:underline"
+                          className="text-xs font-medium text-accent hover:underline"
                         >
                           {selectedSectionIds.size === availableSections.length ? "Deselect All" : "Select All"}
                         </button>
@@ -229,9 +254,9 @@ export default function StaffAssignment() {
                     </div>
 
                     {availableSections.length === 0 ? (
-                      <p className="text-xs text-slate">No sections found for this subject.</p>
+                      <p className="text-xs text-ink-muted">No sections found for this subject.</p>
                     ) : (
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                         {availableSections.map((sec) => {
                           const isSelected = selectedSectionIds.has(sec.id);
                           const currentTeacher = currentAssignedStaffBySectionId[sec.id];
@@ -240,14 +265,14 @@ export default function StaffAssignment() {
                               key={sec.id}
                               type="button"
                               onClick={() => toggleSection(sec.id)}
-                              className={`flex flex-col items-start p-3 border text-left transition-colors rounded ${
+                              className={`flex flex-col items-start rounded-md border p-3 text-left transition-colors duration-150 ease-out ${
                                 isSelected
-                                  ? "border-oxblood bg-card text-ink"
-                                  : "border-brass/30 hover:border-brass/60 text-slate"
+                                  ? "border-accent bg-accent-soft text-ink"
+                                  : "border-border text-ink-secondary hover:border-border-strong"
                               }`}
                             >
                               <span className="text-sm font-medium text-ink">Section {sec.name}</span>
-                              <span className="text-[11px] text-slate mt-1">
+                              <span className="mt-1 text-[11px] text-ink-muted">
                                 {currentTeacher ? `Assigned: ${currentTeacher}` : "Unassigned"}
                               </span>
                             </button>
@@ -259,7 +284,7 @@ export default function StaffAssignment() {
                 )}
 
                 {message && (
-                  <p className={`text-sm ${message.tone === "success" ? "text-slate" : "text-oxblood"}`}>
+                  <p className={`text-sm ${message.tone === "success" ? "text-ink-secondary" : "text-danger"}`}>
                     {message.text}
                   </p>
                 )}
@@ -267,61 +292,71 @@ export default function StaffAssignment() {
                 <button
                   type="submit"
                   disabled={submitting || !selectedSubjectId || !selectedStaffId || selectedSectionIds.size === 0}
-                  className={primaryButtonClass}
+                  className={`${primaryButtonClass} w-fit`}
                 >
                   {submitting ? "Assigning…" : "Assign Staff"}
                 </button>
               </form>
-            </section>
+            </Card>
           )}
 
-          <section>
-            <h2 className="mb-4 font-display text-lg font-semibold text-ink">
-              Current Staff Assignments ({assignments.length})
-            </h2>
-
+          <Card title={`Current Staff Assignments (${assignments.length})`}>
             {assignments.length === 0 ? (
-              <p className="border-b border-brass/20 py-3 text-sm text-slate">No staff assignments recorded yet.</p>
+              <p className="py-3 text-sm text-ink-secondary">No staff assignments recorded yet.</p>
             ) : (
-              <div className="flex flex-col">
-                <table className="w-full text-left text-sm border-collapse">
-                  <thead>
-                    <tr className="border-b border-brass/30 text-xs font-medium uppercase tracking-wide text-slate">
-                      <th className="py-2.5 pr-4">Subject</th>
-                      <th className="py-2.5 pr-4">Course</th>
-                      <th className="py-2.5 pr-4">Section</th>
-                      <th className="py-2.5 pr-4">Assigned Staff</th>
-                      {canAssign && <th className="py-2.5 text-right">Action</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {assignments.map((a) => (
-                      <tr key={a.id} className="border-b border-brass/10 hover:bg-card/50 transition-colors">
-                        <td className="py-3 pr-4 font-medium text-ink">{a.subjectName}</td>
-                        <td className="py-3 pr-4 font-mono text-xs text-slate">{a.courseName ?? "—"}</td>
-                        <td className="py-3 pr-4 font-mono text-xs text-ink">Section {a.sectionName}</td>
-                        <td className="py-3 pr-4 text-slate">
-                          <span className="text-ink">{a.staffName}</span>{" "}
-                          <span className="text-xs font-mono text-slate">({a.staffEmail})</span>
-                        </td>
-                        {canAssign && (
-                          <td className="py-3 text-right">
-                            <button
-                              type="button"
-                              onClick={() => handleUnassign(a.id)}
-                              className="text-xs uppercase font-medium tracking-wide text-oxblood hover:underline"
-                            >
-                              Unassign
-                            </button>
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="flex flex-col gap-6">
+                {Object.entries(assignmentsByCourse).map(([courseLabel, courseAssignments]) => (
+                  <div key={courseLabel}>
+                    <div className="mb-1 flex items-baseline gap-3 border-b border-border-strong pb-1.5">
+                      <span className="font-display text-sm font-semibold text-ink">{courseLabel}</span>
+                      <span className="font-mono text-xs text-ink-muted">
+                        {courseAssignments.length} assignment{courseAssignments.length === 1 ? "" : "s"}
+                      </span>
+                    </div>
+                    <div className={tableWrapClass}>
+                      <table className="w-full text-left text-sm">
+                        <thead>
+                          <tr className={theadRowClass}>
+                            <th className={thClass}>#</th>
+                            <th className={thClass}>Subject</th>
+                            <th className={thClass}>Section</th>
+                            <th className={thClass}>Assigned Staff</th>
+                            {canAssign && <th className={`${thClass} text-right`}>Action</th>}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {courseAssignments.map((a, i) => (
+                            <tr key={a.id} className={trClass}>
+                              <td className={tdClass}>
+                                <span className={folioClass}>{String(i + 1).padStart(2, "0")}</span>
+                              </td>
+                              <td className={`${tdClass} font-medium`}>{a.subjectName}</td>
+                              <td className={`${tdClass} font-mono text-xs`}>Section {a.sectionName}</td>
+                              <td className={`${tdClass} text-ink-secondary`}>
+                                <span className="text-ink">{a.staffName}</span>{" "}
+                                <span className="font-mono text-xs text-ink-muted">({a.staffEmail})</span>
+                              </td>
+                              {canAssign && (
+                                <td className={`${tdClass} text-right`}>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUnassign(a.id)}
+                                    className={dangerActionClass}
+                                  >
+                                    Unassign
+                                  </button>
+                                </td>
+                              )}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
-          </section>
+          </Card>
         </>
       )}
     </div>

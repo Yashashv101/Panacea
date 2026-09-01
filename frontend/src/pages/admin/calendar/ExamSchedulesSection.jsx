@@ -1,6 +1,19 @@
 import { useState } from "react";
 import apiClient from "../../../api/client";
-import { inputClass, labelClass, primaryButtonClass, rowActionClass, extractErrorMessage } from "../academic/formStyles";
+import {
+  inputClass,
+  labelClass,
+  primaryButtonClass,
+  rowActionClass,
+  tableWrapClass,
+  theadRowClass,
+  thClass,
+  tdClass,
+  trClass,
+  folioClass,
+  extractErrorMessage,
+} from "../academic/formStyles";
+import Card from "../../../components/Card";
 
 const EMPTY_FORM = { startDate: "", endDate: "", name: "", description: "", semesterId: "", courseId: "" };
 
@@ -87,11 +100,6 @@ export default function ExamSchedulesSection({ exams, setExams, semesters, cours
     }
   }
 
-  function semesterLabel(id) {
-    const semester = semesters.find((s) => s.id === id);
-    return semester ? `Sem ${semester.number} — ${semester.label}` : "—";
-  }
-
   function courseName(id) {
     if (!id) return "All departments";
     return courses.find((c) => c.id === id)?.name ?? "—";
@@ -100,195 +108,245 @@ export default function ExamSchedulesSection({ exams, setExams, semesters, cours
   const canCreate = semesters.length > 0;
 
   return (
-    <section>
-      <h2 className="mb-4 font-display text-lg font-semibold text-ink">Exam Schedules</h2>
-
-      {!canCreate ? (
-        <p className="mb-4 text-sm text-slate">Add at least one semester before scheduling exams.</p>
-      ) : (
-        <form onSubmit={handleCreate} className="mb-6 flex max-w-3xl flex-col gap-5">
-          <div className="grid grid-cols-2 gap-5">
+    <div className="flex flex-col gap-6">
+      <Card title="Add exam schedule">
+        {!canCreate ? (
+          <p className="text-sm text-ink-secondary">Add at least one semester before scheduling exams.</p>
+        ) : (
+          <form onSubmit={handleCreate} className="flex max-w-3xl flex-col gap-5">
+            <div className="grid grid-cols-2 gap-5">
+              <label className="flex flex-col gap-1.5">
+                <span className={labelClass}>Start date</span>
+                <input
+                  type="date"
+                  required
+                  value={form.startDate}
+                  onChange={(e) => setForm((prev) => ({ ...prev, startDate: e.target.value }))}
+                  className={inputClass}
+                />
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className={labelClass}>End date (optional, for a multi-day window)</span>
+                <input
+                  type="date"
+                  value={form.endDate}
+                  onChange={(e) => setForm((prev) => ({ ...prev, endDate: e.target.value }))}
+                  className={inputClass}
+                />
+              </label>
+            </div>
             <label className="flex flex-col gap-1.5">
-              <span className={labelClass}>Start date</span>
+              <span className={labelClass}>Name</span>
               <input
-                type="date"
+                type="text"
                 required
-                value={form.startDate}
-                onChange={(e) => setForm((prev) => ({ ...prev, startDate: e.target.value }))}
+                value={form.name}
+                onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
                 className={inputClass}
               />
             </label>
+            <div className="grid grid-cols-2 gap-5">
+              <label className="flex flex-col gap-1.5">
+                <span className={labelClass}>Semester</span>
+                <select
+                  required
+                  value={form.semesterId}
+                  onChange={(e) => setForm((prev) => ({ ...prev, semesterId: e.target.value }))}
+                  className={inputClass}
+                >
+                  <option value="" disabled>
+                    Select a semester
+                  </option>
+                  {semesters.map((semester) => (
+                    <option key={semester.id} value={semester.id}>
+                      Sem {semester.number} — {semester.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className={labelClass}>Department (optional — leave blank for all)</span>
+                <select
+                  value={form.courseId}
+                  onChange={(e) => setForm((prev) => ({ ...prev, courseId: e.target.value }))}
+                  className={inputClass}
+                >
+                  <option value="">All departments</option>
+                  {courses.map((course) => (
+                    <option key={course.id} value={course.id}>
+                      {course.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
             <label className="flex flex-col gap-1.5">
-              <span className={labelClass}>End date (optional, for a multi-day window)</span>
+              <span className={labelClass}>Description (optional)</span>
               <input
-                type="date"
-                value={form.endDate}
-                onChange={(e) => setForm((prev) => ({ ...prev, endDate: e.target.value }))}
+                type="text"
+                value={form.description}
+                onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
                 className={inputClass}
               />
             </label>
-          </div>
-          <label className="flex flex-col gap-1.5">
-            <span className={labelClass}>Name</span>
-            <input
-              type="text"
-              required
-              value={form.name}
-              onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-              className={inputClass}
-            />
-          </label>
-          <div className="grid grid-cols-2 gap-5">
-            <label className="flex flex-col gap-1.5">
-              <span className={labelClass}>Semester</span>
-              <select
-                required
-                value={form.semesterId}
-                onChange={(e) => setForm((prev) => ({ ...prev, semesterId: e.target.value }))}
-                className={inputClass}
-              >
-                <option value="" disabled>
-                  Select a semester
-                </option>
-                {semesters.map((semester) => (
-                  <option key={semester.id} value={semester.id}>
-                    Sem {semester.number} — {semester.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className={labelClass}>Department (optional — leave blank for all)</span>
-              <select
-                value={form.courseId}
-                onChange={(e) => setForm((prev) => ({ ...prev, courseId: e.target.value }))}
-                className={inputClass}
-              >
-                <option value="">All departments</option>
-                {courses.map((course) => (
-                  <option key={course.id} value={course.id}>
-                    {course.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <label className="flex flex-col gap-1.5">
-            <span className={labelClass}>Description (optional)</span>
-            <input
-              type="text"
-              value={form.description}
-              onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-              className={inputClass}
-            />
-          </label>
-          <button type="submit" disabled={submitting} className={primaryButtonClass}>
-            {submitting ? "Adding…" : "Add exam schedule"}
-          </button>
-        </form>
-      )}
+            <button type="submit" disabled={submitting} className={primaryButtonClass}>
+              {submitting ? "Adding…" : "Add exam schedule"}
+            </button>
+          </form>
+        )}
 
-      {message && (
-        <p className={`mb-4 text-sm ${message.tone === "success" ? "text-slate" : "text-oxblood"}`}>{message.text}</p>
-      )}
+        {message && (
+          <p className={`mt-4 text-sm ${message.tone === "success" ? "text-ink-secondary" : "text-danger"}`}>
+            {message.text}
+          </p>
+        )}
+      </Card>
 
       {exams.length === 0 ? (
-        <p className="border-b border-brass/20 py-3 text-sm text-slate">No exam schedules yet.</p>
+        <Card title="Exam Schedules">
+          <p className="py-3 text-sm text-ink-secondary">No exam schedules yet.</p>
+        </Card>
       ) : (
-        <div className="flex flex-col">
-          {exams.map((exam) => (
-            <div key={exam.id} className="border-b border-brass/20 py-3">
-              {editingId === exam.id ? (
-                <div className="flex flex-col gap-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <input
-                      type="date"
-                      value={editForm.startDate}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, startDate: e.target.value }))}
-                      className={inputClass}
-                    />
-                    <input
-                      type="date"
-                      value={editForm.endDate}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, endDate: e.target.value }))}
-                      className={inputClass}
-                    />
-                  </div>
-                  <input
-                    type="text"
-                    value={editForm.name}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
-                    className={inputClass}
-                  />
-                  <div className="grid grid-cols-2 gap-4">
-                    <select
-                      value={editForm.semesterId}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, semesterId: e.target.value }))}
-                      className={inputClass}
-                    >
-                      {semesters.map((semester) => (
-                        <option key={semester.id} value={semester.id}>
-                          Sem {semester.number} — {semester.label}
-                        </option>
+        semesters
+          .filter((semester) => exams.some((x) => x.semesterId === semester.id))
+          .map((semester) => {
+            const semesterExams = exams.filter((x) => x.semesterId === semester.id);
+            return (
+              <Card
+                key={semester.id}
+                title={`Sem ${semester.number} — ${semester.label}`}
+                action={
+                  <span className="font-mono text-xs text-ink-muted">
+                    {semesterExams.length} schedule{semesterExams.length === 1 ? "" : "s"}
+                  </span>
+                }
+              >
+                <div className={tableWrapClass}>
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className={theadRowClass}>
+                        <th className={thClass}>#</th>
+                        <th className={thClass}>Dates</th>
+                        <th className={thClass}>Name</th>
+                        <th className={thClass}>Department / Notes</th>
+                        <th className={`${thClass} text-right`}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {semesterExams.map((exam, i) => (
+                        <tr key={exam.id} className={trClass}>
+                          {editingId === exam.id ? (
+                            <>
+                              <td className={`${tdClass} align-top`}>
+                                <span className={folioClass}>{String(i + 1).padStart(2, "0")}</span>
+                              </td>
+                              <td colSpan={4} className="px-4 py-4">
+                                <div className="flex flex-col gap-4">
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <input
+                                      type="date"
+                                      value={editForm.startDate}
+                                      onChange={(e) => setEditForm((prev) => ({ ...prev, startDate: e.target.value }))}
+                                      className={inputClass}
+                                    />
+                                    <input
+                                      type="date"
+                                      value={editForm.endDate}
+                                      onChange={(e) => setEditForm((prev) => ({ ...prev, endDate: e.target.value }))}
+                                      className={inputClass}
+                                    />
+                                  </div>
+                                  <input
+                                    type="text"
+                                    value={editForm.name}
+                                    onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
+                                    className={inputClass}
+                                  />
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <select
+                                      value={editForm.semesterId}
+                                      onChange={(e) =>
+                                        setEditForm((prev) => ({ ...prev, semesterId: e.target.value }))
+                                      }
+                                      className={inputClass}
+                                    >
+                                      {semesters.map((s) => (
+                                        <option key={s.id} value={s.id}>
+                                          Sem {s.number} — {s.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <select
+                                      value={editForm.courseId}
+                                      onChange={(e) => setEditForm((prev) => ({ ...prev, courseId: e.target.value }))}
+                                      className={inputClass}
+                                    >
+                                      <option value="">All departments</option>
+                                      {courses.map((course) => (
+                                        <option key={course.id} value={course.id}>
+                                          {course.name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  <input
+                                    type="text"
+                                    value={editForm.description}
+                                    onChange={(e) =>
+                                      setEditForm((prev) => ({ ...prev, description: e.target.value }))
+                                    }
+                                    className={inputClass}
+                                  />
+                                  <div className="flex items-center gap-4">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSaveEdit(exam.id)}
+                                      className={primaryButtonClass}
+                                    >
+                                      Save
+                                    </button>
+                                    <button type="button" onClick={cancelEdit} className={rowActionClass}>
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              </td>
+                            </>
+                          ) : (
+                            <>
+                              <td className={tdClass}>
+                                <span className={folioClass}>{String(i + 1).padStart(2, "0")}</span>
+                              </td>
+                              <td className={`${tdClass} font-mono`}>
+                                {exam.startDate}
+                                {exam.endDate ? ` – ${exam.endDate}` : ""}
+                              </td>
+                              <td className={`${tdClass} font-medium`}>{exam.name}</td>
+                              <td className={`${tdClass} text-ink-muted`}>
+                                {courseName(exam.courseId)}
+                                {exam.description ? ` · ${exam.description}` : ""}
+                              </td>
+                              <td className={`${tdClass} text-right`}>
+                                <div className="flex items-center justify-end gap-4">
+                                  <button type="button" onClick={() => startEdit(exam)} className={rowActionClass}>
+                                    Edit
+                                  </button>
+                                  <button type="button" onClick={() => handleDelete(exam.id)} className={rowActionClass}>
+                                    {confirmingDeleteId === exam.id ? "Confirm delete?" : "Delete"}
+                                  </button>
+                                </div>
+                              </td>
+                            </>
+                          )}
+                        </tr>
                       ))}
-                    </select>
-                    <select
-                      value={editForm.courseId}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, courseId: e.target.value }))}
-                      className={inputClass}
-                    >
-                      <option value="">All departments</option>
-                      {courses.map((course) => (
-                        <option key={course.id} value={course.id}>
-                          {course.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <input
-                    type="text"
-                    value={editForm.description}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, description: e.target.value }))}
-                    className={inputClass}
-                  />
-                  <div className="flex items-center gap-4">
-                    <button type="button" onClick={() => handleSaveEdit(exam.id)} className={rowActionClass}>
-                      Save
-                    </button>
-                    <button type="button" onClick={cancelEdit} className={rowActionClass}>
-                      Cancel
-                    </button>
-                  </div>
+                    </tbody>
+                  </table>
                 </div>
-              ) : (
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center gap-4">
-                      <span className="font-mono text-sm text-slate">
-                        {exam.startDate}
-                        {exam.endDate ? ` – ${exam.endDate}` : ""}
-                      </span>
-                      <span className="text-sm text-ink">{exam.name}</span>
-                    </div>
-                    <div className="mt-1 text-xs text-slate">
-                      {semesterLabel(exam.semesterId)} · {courseName(exam.courseId)}
-                      {exam.description ? ` · ${exam.description}` : ""}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <button type="button" onClick={() => startEdit(exam)} className={rowActionClass}>
-                      Edit
-                    </button>
-                    <button type="button" onClick={() => handleDelete(exam.id)} className={rowActionClass}>
-                      {confirmingDeleteId === exam.id ? "Confirm delete?" : "Delete"}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+              </Card>
+            );
+          })
       )}
-    </section>
+    </div>
   );
 }

@@ -1,5 +1,6 @@
 package com.example.Panacea.academic.security;
 
+import com.example.Panacea.academic.entity.Course;
 import com.example.Panacea.academic.entity.Subject;
 import com.example.Panacea.academic.repository.SubjectStaffAssignmentRepository;
 import com.example.Panacea.identity.entity.Role;
@@ -7,6 +8,8 @@ import com.example.Panacea.identity.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Component;
+
+import java.util.Set;
 
 /**
  * Single shared home for "is this STAFF member allowed to act on this
@@ -48,6 +51,29 @@ public class SubjectOwnershipGuard {
                 }
             }
             requireOwnership(actor, subject);
+        }
+    }
+
+    /**
+     * Enforces that a staff member's own department ({@code User.staffCourse})
+     * matches at least one of a subject's linked courses — the shared home
+     * for a rule previously reimplemented independently in both
+     * SubjectService (primary-staff assignment on create/update) and
+     * SubjectStaffAssignmentService (per-section staff assignment). A staff
+     * member with no department set, or a subject with no linked courses,
+     * skips the check rather than rejecting — matching both call sites'
+     * prior behavior.
+     */
+    public void requireSameDepartment(User staff, Set<Course> subjectCourses, String subjectName, String action) {
+        if (staff.getStaffCourse() == null || subjectCourses == null || subjectCourses.isEmpty()) {
+            return;
+        }
+        boolean matches = subjectCourses.stream()
+                .anyMatch(c -> c.getId().equals(staff.getStaffCourse().getId()));
+        if (!matches) {
+            throw new IllegalArgumentException("Staff member " + staff.getFirstName() + " " + staff.getLastName() +
+                    " belongs to department " + staff.getStaffCourse().getName() +
+                    " and cannot be " + action + " subject " + subjectName);
         }
     }
 }

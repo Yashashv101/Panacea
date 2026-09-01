@@ -1,6 +1,19 @@
 import { useState } from "react";
 import apiClient from "../../../api/client";
-import { inputClass, labelClass, primaryButtonClass, rowActionClass, extractErrorMessage } from "./formStyles";
+import {
+  inputClass,
+  labelClass,
+  primaryButtonClass,
+  rowActionClass,
+  tableWrapClass,
+  theadRowClass,
+  thClass,
+  tdClass,
+  trClass,
+  folioClass,
+  extractErrorMessage,
+} from "./formStyles";
+import Card from "../../../components/Card";
 
 const EMPTY_FORM = { startYear: "", endYear: "" };
 
@@ -78,87 +91,114 @@ export default function SessionsSection({ sessions, setSessions }) {
   }
 
   return (
-    <section className="mb-10 border-b border-brass/20 pb-8">
-      <h2 className="mb-4 font-display text-lg font-semibold text-ink">Sessions</h2>
+    <div className="flex flex-col gap-6">
+      <Card title="Add session">
+        <form onSubmit={handleCreate} className="flex max-w-md items-end gap-4">
+          <label className="flex flex-1 flex-col gap-1.5">
+            <span className={labelClass}>Start of session</span>
+            <input
+              type="date"
+              required
+              value={form.startYear}
+              onChange={(e) => setForm((prev) => ({ ...prev, startYear: e.target.value }))}
+              className={inputClass}
+            />
+          </label>
+          <label className="flex flex-1 flex-col gap-1.5">
+            <span className={labelClass}>End of session</span>
+            <input
+              type="date"
+              required
+              value={form.endYear}
+              onChange={(e) => setForm((prev) => ({ ...prev, endYear: e.target.value }))}
+              className={inputClass}
+            />
+          </label>
+          <button type="submit" disabled={submitting} className={primaryButtonClass}>
+            {submitting ? "Adding…" : "Add session"}
+          </button>
+        </form>
 
-      <form onSubmit={handleCreate} className="mb-6 flex max-w-md items-end gap-4">
-        <label className="flex flex-1 flex-col gap-1.5">
-          <span className={labelClass}>Start of session</span>
-          <input
-            type="date"
-            required
-            value={form.startYear}
-            onChange={(e) => setForm((prev) => ({ ...prev, startYear: e.target.value }))}
-            className={inputClass}
-          />
-        </label>
-        <label className="flex flex-1 flex-col gap-1.5">
-          <span className={labelClass}>End of session</span>
-          <input
-            type="date"
-            required
-            value={form.endYear}
-            onChange={(e) => setForm((prev) => ({ ...prev, endYear: e.target.value }))}
-            className={inputClass}
-          />
-        </label>
-        <button type="submit" disabled={submitting} className={primaryButtonClass}>
-          {submitting ? "Adding…" : "Add session"}
-        </button>
-      </form>
+        {message && (
+          <p className={`mt-4 text-sm ${message.tone === "success" ? "text-ink-secondary" : "text-danger"}`}>
+            {message.text}
+          </p>
+        )}
+      </Card>
 
-      {message && (
-        <p className={`mb-4 text-sm ${message.tone === "success" ? "text-slate" : "text-oxblood"}`}>{message.text}</p>
-      )}
-
-      {sessions.length === 0 ? (
-        <p className="border-b border-brass/20 py-3 text-sm text-slate">No sessions yet.</p>
-      ) : (
-        <div className="flex flex-col">
-          {sessions.map((session) => (
-            <div key={session.id} className="flex items-center justify-between border-b border-brass/20 py-3">
-              {editingId === session.id ? (
-                <>
-                  <div className="flex flex-1 items-center gap-4">
-                    <input
-                      type="date"
-                      value={editForm.startYear}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, startYear: e.target.value }))}
-                      className={inputClass}
-                    />
-                    <input
-                      type="date"
-                      value={editForm.endYear}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, endYear: e.target.value }))}
-                      className={inputClass}
-                    />
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <button type="button" onClick={() => handleSaveEdit(session.id)} className={rowActionClass}>
-                      Save
-                    </button>
-                    <button type="button" onClick={cancelEdit} className={rowActionClass}>
-                      Cancel
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <span className="font-mono text-sm text-ink">{session.label}</span>
-                  <div className="flex items-center gap-4">
-                    <button type="button" onClick={() => startEdit(session)} className={rowActionClass}>
-                      Edit
-                    </button>
-                    <button type="button" onClick={() => handleDelete(session.id)} className={rowActionClass}>
-                      {confirmingDeleteId === session.id ? "Confirm delete?" : "Delete"}
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </section>
+      <Card title="Sessions">
+        {sessions.length === 0 ? (
+          <p className="py-3 text-sm text-ink-secondary">No sessions yet.</p>
+        ) : (
+          <div className={tableWrapClass}>
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className={theadRowClass}>
+                  <th className={thClass}>#</th>
+                  <th className={thClass}>Session</th>
+                  <th className={`${thClass} text-right`}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sessions.map((session, i) => (
+                  <tr key={session.id} className={trClass}>
+                    {editingId === session.id ? (
+                      <>
+                        <td className={tdClass}>
+                          <span className={folioClass}>{String(i + 1).padStart(2, "0")}</span>
+                        </td>
+                        <td className={tdClass}>
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="date"
+                              value={editForm.startYear}
+                              onChange={(e) => setEditForm((prev) => ({ ...prev, startYear: e.target.value }))}
+                              className={inputClass}
+                            />
+                            <input
+                              type="date"
+                              value={editForm.endYear}
+                              onChange={(e) => setEditForm((prev) => ({ ...prev, endYear: e.target.value }))}
+                              className={inputClass}
+                            />
+                          </div>
+                        </td>
+                        <td className={`${tdClass} text-right`}>
+                          <div className="flex items-center justify-end gap-4">
+                            <button type="button" onClick={() => handleSaveEdit(session.id)} className={rowActionClass}>
+                              Save
+                            </button>
+                            <button type="button" onClick={cancelEdit} className={rowActionClass}>
+                              Cancel
+                            </button>
+                          </div>
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className={tdClass}>
+                          <span className={folioClass}>{String(i + 1).padStart(2, "0")}</span>
+                        </td>
+                        <td className={`${tdClass} font-mono`}>{session.label}</td>
+                        <td className={`${tdClass} text-right`}>
+                          <div className="flex items-center justify-end gap-4">
+                            <button type="button" onClick={() => startEdit(session)} className={rowActionClass}>
+                              Edit
+                            </button>
+                            <button type="button" onClick={() => handleDelete(session.id)} className={rowActionClass}>
+                              {confirmingDeleteId === session.id ? "Confirm delete?" : "Delete"}
+                            </button>
+                          </div>
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+    </div>
   );
 }

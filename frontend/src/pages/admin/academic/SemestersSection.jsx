@@ -1,6 +1,19 @@
 import { useState } from "react";
 import apiClient from "../../../api/client";
-import { inputClass, labelClass, primaryButtonClass, rowActionClass, extractErrorMessage } from "./formStyles";
+import {
+  inputClass,
+  labelClass,
+  primaryButtonClass,
+  rowActionClass,
+  tableWrapClass,
+  theadRowClass,
+  thClass,
+  tdClass,
+  trClass,
+  folioClass,
+  extractErrorMessage,
+} from "./formStyles";
+import Card from "../../../components/Card";
 
 const EMPTY_FORM = { number: "", label: "", sessionId: "" };
 
@@ -18,10 +31,6 @@ export default function SemestersSection({ semesters, setSemesters, sessions }) 
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState(EMPTY_FORM);
   const [confirmingDeleteId, setConfirmingDeleteId] = useState(null);
-
-  function sessionLabel(sessionId) {
-    return sessions.find((s) => s.id === sessionId)?.label ?? "—";
-  }
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -91,122 +100,174 @@ export default function SemestersSection({ semesters, setSemesters, sessions }) 
   }
 
   return (
-    <section className="mb-10 border-b border-brass/20 pb-8">
-      <h2 className="mb-4 font-display text-lg font-semibold text-ink">Semesters</h2>
-
-      <form onSubmit={handleCreate} className="mb-6 flex max-w-2xl items-end gap-4">
-        <label className="flex w-40 flex-col gap-1.5">
-          <span className={labelClass}>Session</span>
-          <select
-            required
-            value={form.sessionId}
-            onChange={(e) => setForm((prev) => ({ ...prev, sessionId: e.target.value }))}
-            className={inputClass}
-          >
-            <option value="" disabled>
-              Select a session
-            </option>
-            {sessions.map((session) => (
-              <option key={session.id} value={session.id}>
-                {session.label}
+    <div className="flex flex-col gap-6">
+      <Card title="Add semester">
+        <form onSubmit={handleCreate} className="flex max-w-2xl items-end gap-4">
+          <label className="flex w-40 flex-col gap-1.5">
+            <span className={labelClass}>Session</span>
+            <select
+              required
+              value={form.sessionId}
+              onChange={(e) => setForm((prev) => ({ ...prev, sessionId: e.target.value }))}
+              className={inputClass}
+            >
+              <option value="" disabled>
+                Select a session
               </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex w-24 flex-col gap-1.5">
-          <span className={labelClass}>Number</span>
-          <input
-            type="number"
-            min="1"
-            required
-            value={form.number}
-            onChange={(e) => setForm((prev) => ({ ...prev, number: e.target.value }))}
-            className={inputClass}
-          />
-        </label>
-        <label className="flex flex-1 flex-col gap-1.5">
-          <span className={labelClass}>Label</span>
-          <input
-            type="text"
-            required
-            value={form.label}
-            onChange={(e) => setForm((prev) => ({ ...prev, label: e.target.value }))}
-            className={inputClass}
-          />
-        </label>
-        <button type="submit" disabled={submitting} className={primaryButtonClass}>
-          {submitting ? "Adding…" : "Add semester"}
-        </button>
-      </form>
+              {sessions.map((session) => (
+                <option key={session.id} value={session.id}>
+                  {session.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex w-24 flex-col gap-1.5">
+            <span className={labelClass}>Number</span>
+            <input
+              type="number"
+              min="1"
+              required
+              value={form.number}
+              onChange={(e) => setForm((prev) => ({ ...prev, number: e.target.value }))}
+              className={inputClass}
+            />
+          </label>
+          <label className="flex flex-1 flex-col gap-1.5">
+            <span className={labelClass}>Label</span>
+            <input
+              type="text"
+              required
+              value={form.label}
+              onChange={(e) => setForm((prev) => ({ ...prev, label: e.target.value }))}
+              className={inputClass}
+            />
+          </label>
+          <button type="submit" disabled={submitting} className={primaryButtonClass}>
+            {submitting ? "Adding…" : "Add semester"}
+          </button>
+        </form>
 
-      {message && (
-        <p className={`mb-4 text-sm ${message.tone === "success" ? "text-slate" : "text-oxblood"}`}>{message.text}</p>
-      )}
+        {message && (
+          <p className={`mt-4 text-sm ${message.tone === "success" ? "text-ink-secondary" : "text-danger"}`}>
+            {message.text}
+          </p>
+        )}
+      </Card>
 
       {semesters.length === 0 ? (
-        <p className="border-b border-brass/20 py-3 text-sm text-slate">No semesters yet.</p>
+        <Card title="Semesters">
+          <p className="py-3 text-sm text-ink-secondary">No semesters yet.</p>
+        </Card>
       ) : (
-        <div className="flex flex-col">
-          {semesters.map((semester) => (
-            <div key={semester.id} className="flex items-center justify-between border-b border-brass/20 py-3">
-              {editingId === semester.id ? (
-                <>
-                  <div className="flex flex-1 items-center gap-4">
-                    <select
-                      value={editForm.sessionId}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, sessionId: e.target.value }))}
-                      className={`${inputClass} w-32`}
-                    >
-                      {sessions.map((session) => (
-                        <option key={session.id} value={session.id}>
-                          {session.label}
-                        </option>
+        sessions
+          .filter((session) => semesters.some((s) => s.sessionId === session.id))
+          .map((session) => {
+            const sessionSemesters = semesters
+              .filter((s) => s.sessionId === session.id)
+              .sort((a, b) => a.number - b.number);
+            return (
+              <Card
+                key={session.id}
+                title={session.label}
+                action={
+                  <span className="font-mono text-xs text-ink-muted">
+                    {sessionSemesters.length} semester{sessionSemesters.length === 1 ? "" : "s"}
+                  </span>
+                }
+              >
+                <div className={tableWrapClass}>
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className={theadRowClass}>
+                        <th className={thClass}>#</th>
+                        <th className={thClass}>Label</th>
+                        <th className={thClass}>Parity</th>
+                        <th className={`${thClass} text-right`}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sessionSemesters.map((semester) => (
+                        <tr key={semester.id} className={trClass}>
+                          {editingId === semester.id ? (
+                            <>
+                              <td className={tdClass}>
+                                <span className={folioClass}>{String(semester.number).padStart(2, "0")}</span>
+                              </td>
+                              <td className={tdClass} colSpan={2}>
+                                <div className="flex items-center gap-3">
+                                  <select
+                                    value={editForm.sessionId}
+                                    onChange={(e) => setEditForm((prev) => ({ ...prev, sessionId: e.target.value }))}
+                                    className={`${inputClass} w-32`}
+                                  >
+                                    {sessions.map((s) => (
+                                      <option key={s.id} value={s.id}>
+                                        {s.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    value={editForm.number}
+                                    onChange={(e) => setEditForm((prev) => ({ ...prev, number: e.target.value }))}
+                                    className={`${inputClass} w-20`}
+                                  />
+                                  <input
+                                    type="text"
+                                    value={editForm.label}
+                                    onChange={(e) => setEditForm((prev) => ({ ...prev, label: e.target.value }))}
+                                    className={`${inputClass} max-w-xs flex-1`}
+                                  />
+                                </div>
+                              </td>
+                              <td className={`${tdClass} text-right`}>
+                                <div className="flex items-center justify-end gap-4">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSaveEdit(semester.id)}
+                                    className={rowActionClass}
+                                  >
+                                    Save
+                                  </button>
+                                  <button type="button" onClick={cancelEdit} className={rowActionClass}>
+                                    Cancel
+                                  </button>
+                                </div>
+                              </td>
+                            </>
+                          ) : (
+                            <>
+                              <td className={tdClass}>
+                                <span className={folioClass}>{String(semester.number).padStart(2, "0")}</span>
+                              </td>
+                              <td className={`${tdClass} font-medium`}>{semester.label}</td>
+                              <td className={`${tdClass} text-ink-secondary`}>{semester.parity}</td>
+                              <td className={`${tdClass} text-right`}>
+                                <div className="flex items-center justify-end gap-4">
+                                  <button type="button" onClick={() => startEdit(semester)} className={rowActionClass}>
+                                    Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDelete(semester.id)}
+                                    className={rowActionClass}
+                                  >
+                                    {confirmingDeleteId === semester.id ? "Confirm delete?" : "Delete"}
+                                  </button>
+                                </div>
+                              </td>
+                            </>
+                          )}
+                        </tr>
                       ))}
-                    </select>
-                    <input
-                      type="number"
-                      min="1"
-                      value={editForm.number}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, number: e.target.value }))}
-                      className={`${inputClass} w-20`}
-                    />
-                    <input
-                      type="text"
-                      value={editForm.label}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, label: e.target.value }))}
-                      className={`${inputClass} max-w-xs flex-1`}
-                    />
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <button type="button" onClick={() => handleSaveEdit(semester.id)} className={rowActionClass}>
-                      Save
-                    </button>
-                    <button type="button" onClick={cancelEdit} className={rowActionClass}>
-                      Cancel
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex items-center gap-4">
-                    <span className="font-mono text-xs text-slate">{sessionLabel(semester.sessionId)}</span>
-                    <span className="font-mono text-sm text-slate">Sem {semester.number}</span>
-                    <span className="text-sm text-ink">{semester.label}</span>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <button type="button" onClick={() => startEdit(semester)} className={rowActionClass}>
-                      Edit
-                    </button>
-                    <button type="button" onClick={() => handleDelete(semester.id)} className={rowActionClass}>
-                      {confirmingDeleteId === semester.id ? "Confirm delete?" : "Delete"}
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          ))}
-        </div>
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            );
+          })
       )}
-    </section>
+    </div>
   );
 }

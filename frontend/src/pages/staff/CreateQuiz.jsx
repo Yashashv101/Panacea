@@ -2,7 +2,15 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import apiClient from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
-import { inputClass, labelClass, primaryButtonClass, rowActionClass, extractErrorMessage } from "../admin/academic/formStyles";
+import {
+  inputClass,
+  labelClass,
+  primaryButtonClass,
+  rowActionClass,
+  dangerActionClass,
+  extractErrorMessage,
+} from "../admin/academic/formStyles";
+import Card from "../../components/Card";
 
 let nextQuestionKey = 0;
 function emptyQuestion() {
@@ -132,10 +140,10 @@ export default function CreateQuiz() {
   if (loading) {
     return (
       <div>
-        <div className="mb-6 border-b border-brass/20 pb-4">
+        <div className="mb-6">
           <h1 className="font-display text-2xl font-semibold text-ink">New Quiz</h1>
         </div>
-        <p className="text-sm text-slate">Loading…</p>
+        <p className="text-sm text-ink-secondary">Loading…</p>
       </div>
     );
   }
@@ -143,79 +151,81 @@ export default function CreateQuiz() {
   if (loadError) {
     return (
       <div>
-        <div className="mb-6 border-b border-brass/20 pb-4">
+        <div className="mb-6">
           <h1 className="font-display text-2xl font-semibold text-ink">New Quiz</h1>
         </div>
-        <p className="text-sm text-oxblood">{loadError}</p>
+        <p className="text-sm text-danger">{loadError}</p>
       </div>
     );
   }
 
   return (
     <div>
-      <div className="mb-6 border-b border-brass/20 pb-4">
+      <div className="mb-6">
         <h1 className="font-display text-2xl font-semibold text-ink">New Quiz</h1>
       </div>
 
       {ownedSubjects.length === 0 ? (
-        <p className="text-sm text-slate">
+        <p className="text-sm text-ink-secondary">
           You are not the primary staff for any subject, so there is nothing to create a quiz for.
         </p>
       ) : (
-        <form onSubmit={handleSubmit} className="flex max-w-2xl flex-col gap-8">
-          <div className="grid grid-cols-2 gap-5">
-            <label className="flex flex-col gap-1.5">
-              <span className={labelClass}>Subject</span>
-              <select
-                required
-                value={subjectId}
-                onChange={(e) => setSubjectId(e.target.value)}
-                className={inputClass}
-              >
-                <option value="" disabled>
-                  Select a subject
-                </option>
-                {ownedSubjects.map((subject) => (
-                  <option key={subject.id} value={subject.id}>
-                    {subject.name}
+        <form onSubmit={handleSubmit} className="flex max-w-2xl flex-col gap-6">
+          <Card title="Quiz details">
+            <div className="grid grid-cols-2 gap-5">
+              <label className="flex flex-col gap-1.5">
+                <span className={labelClass}>Subject</span>
+                <select
+                  required
+                  value={subjectId}
+                  onChange={(e) => setSubjectId(e.target.value)}
+                  className={inputClass}
+                >
+                  <option value="" disabled>
+                    Select a subject
                   </option>
-                ))}
-              </select>
-            </label>
+                  {ownedSubjects.map((subject) => (
+                    <option key={subject.id} value={subject.id}>
+                      {subject.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-            <label className="flex flex-col gap-1.5">
-              <span className={labelClass}>Title</span>
+              <label className="flex flex-col gap-1.5">
+                <span className={labelClass}>Title</span>
+                <input
+                  type="text"
+                  required
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className={inputClass}
+                />
+              </label>
+            </div>
+
+            <label className="mt-5 flex items-center gap-2.5">
               <input
-                type="text"
-                required
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className={inputClass}
+                type="checkbox"
+                checked={rescaleToTen}
+                onChange={(e) => setRescaleToTen(e.target.checked)}
+                className="accent-accent"
               />
+              <span className={labelClass}>Rescale final score to /10</span>
             </label>
-          </div>
+          </Card>
 
-          <label className="flex items-center gap-2.5">
-            <input
-              type="checkbox"
-              checked={rescaleToTen}
-              onChange={(e) => setRescaleToTen(e.target.checked)}
-              className="accent-oxblood"
-            />
-            <span className={labelClass}>Rescale final score to /10</span>
-          </label>
-
-          <section>
-            <div className="mb-2 flex items-baseline justify-between border-b border-brass/20 pb-2">
-              <h2 className="font-display text-lg font-semibold text-ink">Questions</h2>
+          <Card
+            title="Questions"
+            action={
               <button type="button" onClick={addQuestion} className={rowActionClass}>
                 Add question
               </button>
-            </div>
-
-            <div className="flex flex-col">
+            }
+          >
+            <div className="flex flex-col divide-y divide-border">
               {questions.map((question, qIndex) => (
-                <div key={question.key} className="border-b border-brass/20 py-5">
+                <div key={question.key} className="py-5 first:pt-0 last:pb-0">
                   <div className="mb-3 flex items-start justify-between gap-4">
                     <label className="flex flex-1 flex-col gap-1.5">
                       <span className={labelClass}>Question {qIndex + 1}</span>
@@ -243,7 +253,7 @@ export default function CreateQuiz() {
                       <button
                         type="button"
                         onClick={() => removeQuestion(question.key)}
-                        className={`${rowActionClass} mt-6`}
+                        className={`${dangerActionClass} mt-6`}
                       >
                         Remove
                       </button>
@@ -259,7 +269,7 @@ export default function CreateQuiz() {
                             name={`correct-${question.key}`}
                             checked={question.correctOptionIndex === oIndex}
                             onChange={() => updateQuestion(question.key, { correctOptionIndex: oIndex })}
-                            className="accent-oxblood"
+                            className="accent-accent"
                           />
                         </label>
                         <input
@@ -274,33 +284,29 @@ export default function CreateQuiz() {
                           <button
                             type="button"
                             onClick={() => removeOption(question.key, oIndex)}
-                            className={rowActionClass}
+                            className={dangerActionClass}
                           >
                             Remove
                           </button>
                         )}
                       </div>
                     ))}
-                    <button
-                      type="button"
-                      onClick={() => addOption(question.key)}
-                      className={`${rowActionClass} w-fit`}
-                    >
+                    <button type="button" onClick={() => addOption(question.key)} className={`${rowActionClass} w-fit`}>
                       Add option
                     </button>
                   </div>
                 </div>
               ))}
             </div>
-          </section>
+          </Card>
 
           {message && (
-            <p className={`text-sm ${message.tone === "success" ? "text-slate" : "text-oxblood"}`}>
+            <p className={`text-sm ${message.tone === "success" ? "text-ink-secondary" : "text-danger"}`}>
               {message.text}
             </p>
           )}
 
-          <button type="submit" disabled={submitting || !canSubmit} className={primaryButtonClass}>
+          <button type="submit" disabled={submitting || !canSubmit} className={`${primaryButtonClass} w-fit`}>
             {submitting ? "Creating…" : "Create quiz"}
           </button>
         </form>

@@ -44,4 +44,18 @@ public class CalendarQueryService {
                 .sorted(Comparator.comparing(CalendarEntryResponse::date))
                 .toList();
     }
+
+    @Transactional(readOnly = true)
+    public List<CalendarEntryResponse> findAll() {
+        return Stream.of(
+                        holidayRepository.findAll().stream()
+                                .map(CalendarEntryResponse::from),
+                        examScheduleRepository.findAll().stream()
+                                .map(CalendarEntryResponse::from),
+                        collegeEventRepository.findAll().stream()
+                                .map(CalendarEntryResponse::from))
+                .flatMap(s -> s)
+                .sorted(Comparator.comparing(CalendarEntryResponse::date))
+                .toList();
+    }
 }

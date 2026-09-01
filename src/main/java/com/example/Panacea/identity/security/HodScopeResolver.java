@@ -7,6 +7,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Set;
 import java.util.function.Function;
 
 /**
@@ -73,6 +74,28 @@ public class HodScopeResolver {
             return;
         }
         if (resourceCourseId == null || !scope.getId().equals(resourceCourseId)) {
+            throw new AccessDeniedException("This resource belongs to a different department");
+        }
+    }
+
+    /**
+     * The multi-course variant of {@link #requireCourseAccess(User, Long)},
+     * for a resource linked to several courses at once (e.g. a Subject's
+     * {@code courses} set) rather than a single {@code courseId} column.
+     * No-ops for ADMIN; for HOD, throws directly unless at least one of
+     * {@code resourceCourses} matches their own hodCourse — replaces the
+     * "resolve scope, compare, then trigger requireCourseAccess with a
+     * guaranteed-mismatched id" workaround previously duplicated at each
+     * call site that needed this shape of check.
+     */
+    public void requireCourseAccess(User user, Set<Course> resourceCourses) {
+        Course scope = resolveScopeCourse(user);
+        if (scope == null) {
+            return;
+        }
+        boolean matches = resourceCourses != null && resourceCourses.stream()
+                .anyMatch(c -> c != null && scope.getId().equals(c.getId()));
+        if (!matches) {
             throw new AccessDeniedException("This resource belongs to a different department");
         }
     }

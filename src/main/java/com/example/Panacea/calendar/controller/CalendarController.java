@@ -26,4 +26,9 @@ public class CalendarController {
     public List<CalendarEntryResponse> upcoming() {
         return calendarQueryService.findUpcoming();
     }
+
+    @GetMapping("/all")
+    public List<CalendarEntryResponse> allEvents() {
+        return calendarQueryService.findAll();
+    }
 }

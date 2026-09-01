@@ -1,6 +1,19 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import apiClient from "../../api/client";
+import Card from "../../components/Card";
+import MetricCard from "../../components/MetricCard";
+import StatusBadge from "../../components/StatusBadge";
+import { tableWrapClass, theadRowClass, thClass, tdClass, trClass } from "../admin/academic/formStyles";
+import { AlertTriangle } from "lucide-react";
+
+function ReasonBadge({ reason }) {
+  return reason === "attendance" ? (
+    <StatusBadge status="ATTENDANCE < 75%" variant="negative" />
+  ) : (
+    <StatusBadge status="CIE MARKS < 20/50" variant="pending" />
+  );
+}
 
 export default function AtRisk() {
   const [students, setStudents] = useState([]);
@@ -47,152 +60,126 @@ export default function AtRisk() {
 
   return (
     <div>
-      <div className="mb-6 border-b border-brass/20 pb-4">
-        <h1 className="font-display text-2xl font-semibold text-ink">
-          At-Risk Students
-        </h1>
-        <p className="mt-1 text-xs uppercase tracking-wide text-slate">
+      <div className="mb-6">
+        <h1 className="font-display text-2xl font-semibold text-ink">At-Risk Students</h1>
+        <p className="mt-1 text-sm text-ink-secondary">
           Department students flagged for attendance (&lt; 75%) or CIE performance (Test 1 + Test 2 &lt; 20/50)
         </p>
       </div>
 
       {loading ? (
-        <p className="py-4 text-sm text-slate">Evaluating academic records…</p>
+        <p className="py-4 text-sm text-ink-secondary">Evaluating academic records…</p>
       ) : error ? (
-        <p className="py-4 text-sm text-oxblood">{error}</p>
+        <p className="py-4 text-sm text-danger">{error}</p>
       ) : students.length === 0 ? (
-        <div className="border-b border-brass/20 py-6">
-          <p className="text-sm text-slate">
+        <Card>
+          <p className="text-sm text-ink-secondary">
             No students are currently flagged as at-risk in your department.
           </p>
-        </div>
+        </Card>
       ) : (
-        <div className="max-w-4xl">
-          <div className="mb-2 border-b border-brass/40 pb-1 flex items-center justify-between">
-            <span className="font-display text-xs uppercase tracking-widest text-brass">
-              Flagged Students ({students.length})
-            </span>
-            <span className="text-xs text-slate">
-              Click a student to view trigger details
-            </span>
+        <div className="flex flex-col gap-6">
+          <div className="max-w-xs">
+            <MetricCard label="Flagged Students" value={students.length} icon={AlertTriangle} tone="danger" />
           </div>
 
-          <div className="flex flex-col">
-            {students.map((student) => {
-              const isExpanded = expandedId === student.studentId;
-              const reasonCount = student.reasons.length;
+          <Card title="Flagged Students" action={<span className="text-xs text-ink-muted">Click a row for trigger details</span>}>
+            <div className={tableWrapClass}>
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className={theadRowClass}>
+                    <th className={thClass}>Student</th>
+                    <th className={thClass}>Section</th>
+                    <th className={thClass}>Email</th>
+                    <th className={`${thClass} text-right`}>Flags</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {students.map((student) => {
+                    const isExpanded = expandedId === student.studentId;
+                    const reasonCount = student.reasons.length;
 
-              return (
-                <div
-                  key={student.studentId}
-                  className="border-b border-brass/20 transition-colors"
-                >
-                  {/* Student row (initial view: names and summary) */}
-                  <button
-                    type="button"
-                    onClick={() => toggleExpand(student.studentId)}
-                    className="flex w-full items-center justify-between py-3 text-left hover:bg-card px-2 -mx-2 transition-colors"
-                  >
-                    <div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm font-medium text-ink">
-                          {student.studentName}
-                        </span>
-                        <span className="font-mono text-xs text-slate">
-                          {student.sectionName}
-                        </span>
-                        <span className="font-mono text-xs text-slate">
-                          {student.email}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-4">
-                      <span className="font-mono text-xs text-oxblood font-medium">
-                        {reasonCount} {reasonCount === 1 ? "flag" : "flags"}
-                      </span>
-                      <span className="font-mono text-xs text-slate">
-                        {isExpanded ? "▲ Hide" : "▼ Details"}
-                      </span>
-                    </div>
-                  </button>
-
-                  {/* Expanded detail view */}
-                  {isExpanded && (
-                    <div className="mb-4 mt-2 bg-card/60 p-4 border-l-2 border-oxblood">
-                      <div className="mb-3 flex items-center justify-between">
-                        <span className="text-xs font-medium uppercase tracking-wide text-slate">
-                          Triggered Conditions for {student.studentName}
-                        </span>
-                        <Link
-                          to="/hod/students"
-                          className="text-xs text-oxblood hover:underline uppercase tracking-wide"
+                    return (
+                      <Fragment key={student.studentId}>
+                        <tr
+                          onClick={() => toggleExpand(student.studentId)}
+                          className={`${trClass} cursor-pointer`}
                         >
-                          Open Student Lookup →
-                        </Link>
-                      </div>
+                          <td className={`${tdClass} font-medium`}>{student.studentName}</td>
+                          <td className={`${tdClass} font-mono text-xs text-ink-secondary`}>{student.sectionName}</td>
+                          <td className={`${tdClass} font-mono text-xs text-ink-muted`}>{student.email}</td>
+                          <td className={`${tdClass} text-right`}>
+                            <span className="font-mono text-xs font-medium text-danger">
+                              {reasonCount} {reasonCount === 1 ? "flag" : "flags"}
+                            </span>
+                            <span className="ml-3 text-xs text-ink-muted">{isExpanded ? "▲" : "▼"}</span>
+                          </td>
+                        </tr>
 
-                      <div className="overflow-x-auto">
-                        <table className="w-full border-collapse text-left text-sm">
-                          <thead>
-                            <tr className="border-b border-brass/20 text-xs font-medium uppercase tracking-wide text-slate">
-                              <th className="py-2 pr-4 font-normal">Subject</th>
-                              <th className="py-2 px-3 font-normal">Trigger Category</th>
-                              <th className="py-2 pl-3 font-normal text-right">Details</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {student.reasons.map((r, idx) => (
-                              <tr
-                                key={`${r.subjectId}-${r.reason}-${idx}`}
-                                className="border-b border-brass/10 last:border-b-0"
-                              >
-                                <td className="py-2.5 pr-4 text-ink font-medium">
-                                  {r.subjectName}
-                                </td>
-                                <td className="py-2.5 px-3">
-                                  {r.reason === "attendance" ? (
-                                    <span className="text-xs font-mono text-oxblood uppercase">
-                                      Attendance (&lt; 75%)
-                                    </span>
-                                  ) : (
-                                    <span className="text-xs font-mono text-oxblood uppercase">
-                                      CIE Marks (&lt; 20/50)
-                                    </span>
-                                  )}
-                                </td>
-                                <td className="py-2.5 pl-3 text-right font-mono text-xs text-ink">
-                                  {r.reason === "attendance" ? (
-                                    <span>
-                                      {r.attendancePercentage != null
-                                        ? `${r.attendancePercentage.toFixed(1)}%`
-                                        : "—"}
-                                      {r.totalSessions != null && (
-                                        <span className="ml-1 text-slate">
-                                          ({r.presentSessions}/{r.totalSessions} sessions)
-                                        </span>
-                                      )}
-                                    </span>
-                                  ) : (
-                                    <span>
-                                      T1: {r.test1} · T2: {r.test2}{" "}
-                                      <span className="font-semibold text-oxblood">
-                                        (Total: {r.marksTotal != null ? r.marksTotal.toFixed(1) : "—"} / 50)
-                                      </span>
-                                    </span>
-                                  )}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                        {isExpanded && (
+                          <tr className={trClass}>
+                            <td colSpan={4} className="bg-surface-alt/60 px-4 py-4">
+                              <div className="mb-3 flex items-center justify-between">
+                                <span className="text-xs font-medium uppercase tracking-wide text-ink-muted">
+                                  Triggered Conditions for {student.studentName}
+                                </span>
+                                <Link to="/hod/students" className="text-xs font-medium text-accent hover:underline">
+                                  Open Student Lookup →
+                                </Link>
+                              </div>
+
+                              <div className="overflow-x-auto rounded-lg border border-border bg-surface">
+                                <table className="w-full text-left text-sm">
+                                  <thead>
+                                    <tr className={theadRowClass}>
+                                      <th className={thClass}>Subject</th>
+                                      <th className={thClass}>Trigger</th>
+                                      <th className={`${thClass} text-right`}>Details</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {student.reasons.map((r, idx) => (
+                                      <tr key={`${r.subjectId}-${r.reason}-${idx}`} className={trClass}>
+                                        <td className={`${tdClass} font-medium`}>{r.subjectName}</td>
+                                        <td className={tdClass}>
+                                          <ReasonBadge reason={r.reason} />
+                                        </td>
+                                        <td className={`${tdClass} text-right font-mono text-xs`}>
+                                          {r.reason === "attendance" ? (
+                                            <span>
+                                              {r.attendancePercentage != null
+                                                ? `${r.attendancePercentage.toFixed(1)}%`
+                                                : "—"}
+                                              {r.totalSessions != null && (
+                                                <span className="ml-1 text-ink-muted">
+                                                  ({r.presentSessions}/{r.totalSessions} sessions)
+                                                </span>
+                                              )}
+                                            </span>
+                                          ) : (
+                                            <span>
+                                              T1: {r.test1} · T2: {r.test2}{" "}
+                                              <span className="font-semibold text-warning">
+                                                (Total: {r.marksTotal != null ? r.marksTotal.toFixed(1) : "—"} / 50)
+                                              </span>
+                                            </span>
+                                          )}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
         </div>
       )}
     </div>

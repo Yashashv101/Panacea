@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import apiClient from "../api/client";
-import StatusStamp from "../components/StatusStamp.jsx";
+import StatusBadge from "../components/StatusBadge";
+import Card from "../components/Card";
 import { inputClass, labelClass, primaryButtonClass, extractErrorMessage } from "./admin/academic/formStyles";
 
 const EMPTY_FORM = { reason: "", startDate: "", endDate: "" };
@@ -47,74 +48,78 @@ export default function LeaveRequestForm() {
 
   return (
     <div>
-      <div className="mb-6 border-b border-brass/20 pb-4">
+      <div className="mb-6">
         <h1 className="font-display text-2xl font-semibold text-ink">Leave Requests</h1>
       </div>
 
-      <form onSubmit={handleSubmit} className="mb-8 flex max-w-xl flex-col gap-4 border-b border-brass/20 pb-8">
-        <div className="flex gap-4">
-          <label className="flex flex-1 flex-col gap-1.5">
-            <span className={labelClass}>Start date</span>
-            <input
-              type="date"
+      <Card title="New request" className="mb-6">
+        <form onSubmit={handleSubmit} className="flex max-w-xl flex-col gap-4">
+          <div className="flex gap-4">
+            <label className="flex flex-1 flex-col gap-1.5">
+              <span className={labelClass}>Start date</span>
+              <input
+                type="date"
+                required
+                value={form.startDate}
+                onChange={(e) => setForm((prev) => ({ ...prev, startDate: e.target.value }))}
+                className={inputClass}
+              />
+            </label>
+            <label className="flex flex-1 flex-col gap-1.5">
+              <span className={labelClass}>End date</span>
+              <input
+                type="date"
+                required
+                value={form.endDate}
+                onChange={(e) => setForm((prev) => ({ ...prev, endDate: e.target.value }))}
+                className={inputClass}
+              />
+            </label>
+          </div>
+          <label className="flex flex-col gap-1.5">
+            <span className={labelClass}>Reason</span>
+            <textarea
+              rows={3}
               required
-              value={form.startDate}
-              onChange={(e) => setForm((prev) => ({ ...prev, startDate: e.target.value }))}
+              value={form.reason}
+              onChange={(e) => setForm((prev) => ({ ...prev, reason: e.target.value }))}
               className={inputClass}
             />
           </label>
-          <label className="flex flex-1 flex-col gap-1.5">
-            <span className={labelClass}>End date</span>
-            <input
-              type="date"
-              required
-              value={form.endDate}
-              onChange={(e) => setForm((prev) => ({ ...prev, endDate: e.target.value }))}
-              className={inputClass}
-            />
-          </label>
-        </div>
-        <label className="flex flex-col gap-1.5">
-          <span className={labelClass}>Reason</span>
-          <textarea
-            rows={3}
-            required
-            value={form.reason}
-            onChange={(e) => setForm((prev) => ({ ...prev, reason: e.target.value }))}
-            className={inputClass}
-          />
-        </label>
-        <button type="submit" disabled={submitting} className={primaryButtonClass}>
-          {submitting ? "Submitting…" : "Submit request"}
-        </button>
-        {message && (
-          <p className={`text-sm ${message.tone === "success" ? "text-slate" : "text-oxblood"}`}>{message.text}</p>
-        )}
-      </form>
+          <button type="submit" disabled={submitting} className={primaryButtonClass}>
+            {submitting ? "Submitting…" : "Submit request"}
+          </button>
+          {message && (
+            <p className={`text-sm ${message.tone === "success" ? "text-ink-secondary" : "text-danger"}`}>
+              {message.text}
+            </p>
+          )}
+        </form>
+      </Card>
 
-      <h2 className="mb-4 font-display text-lg font-semibold text-ink">My Requests</h2>
-
-      {loading ? (
-        <p className="text-sm text-slate">Loading…</p>
-      ) : loadError ? (
-        <p className="text-sm text-oxblood">{loadError}</p>
-      ) : requests.length === 0 ? (
-        <p className="border-b border-brass/20 py-3 text-sm text-slate">You haven't submitted any leave requests.</p>
-      ) : (
-        <div className="flex flex-col">
-          {requests.map((request) => (
-            <div key={request.id} className="border-b border-brass/20 py-3">
-              <div className="flex items-center gap-4">
-                <span className="font-mono text-sm text-slate">
-                  {request.startDate} → {request.endDate}
-                </span>
-                <StatusStamp status={request.status} />
+      <Card title="My Requests">
+        {loading ? (
+          <p className="text-sm text-ink-secondary">Loading…</p>
+        ) : loadError ? (
+          <p className="text-sm text-danger">{loadError}</p>
+        ) : requests.length === 0 ? (
+          <p className="text-sm text-ink-secondary">You haven't submitted any leave requests.</p>
+        ) : (
+          <div className="flex flex-col divide-y divide-border">
+            {requests.map((request) => (
+              <div key={request.id} className="py-3 first:pt-0 last:pb-0">
+                <div className="flex items-center gap-4">
+                  <span className="font-mono text-sm text-ink-secondary">
+                    {request.startDate} → {request.endDate}
+                  </span>
+                  <StatusBadge status={request.status} />
+                </div>
+                <p className="mt-1 max-w-2xl text-sm text-ink-secondary">{request.reason}</p>
               </div>
-              <p className="mt-1 max-w-2xl text-sm text-slate">{request.reason}</p>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

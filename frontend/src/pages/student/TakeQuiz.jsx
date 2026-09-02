@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import apiClient from "../../api/client";
+import Card from "../../components/Card";
 import { primaryButtonClass, rowActionClass, extractErrorMessage } from "../admin/academic/formStyles";
 
 function QuizList() {
@@ -51,10 +52,10 @@ function QuizList() {
   if (loading) {
     return (
       <div>
-        <div className="mb-6 border-b border-brass/20 pb-4">
+        <div className="mb-6">
           <h1 className="font-display text-2xl font-semibold text-ink">Quizzes</h1>
         </div>
-        <p className="text-sm text-slate">Loading…</p>
+        <p className="text-sm text-ink-secondary">Loading…</p>
       </div>
     );
   }
@@ -62,48 +63,50 @@ function QuizList() {
   if (loadError) {
     return (
       <div>
-        <div className="mb-6 border-b border-brass/20 pb-4">
+        <div className="mb-6">
           <h1 className="font-display text-2xl font-semibold text-ink">Quizzes</h1>
         </div>
-        <p className="text-sm text-oxblood">{loadError}</p>
+        <p className="text-sm text-danger">{loadError}</p>
       </div>
     );
   }
 
   return (
     <div>
-      <div className="mb-6 border-b border-brass/20 pb-4">
+      <div className="mb-6">
         <h1 className="font-display text-2xl font-semibold text-ink">Quizzes</h1>
       </div>
 
       {sortedQuizzes.length === 0 ? (
-        <p className="border-b border-brass/20 py-3 text-sm text-slate">No quizzes available yet.</p>
+        <p className="text-sm text-ink-secondary">No quizzes available yet.</p>
       ) : (
-        <div className="flex flex-col">
-          {sortedQuizzes.map((quiz) => {
-            const attempt = attemptByQuizId[quiz.id];
-            return (
-              <div key={quiz.id} className="flex items-center justify-between border-b border-brass/20 py-3">
-                <div>
-                  <div className="text-sm text-ink">{quiz.title}</div>
-                  <div className="mt-0.5 text-xs text-slate">{quiz.subjectName}</div>
+        <Card>
+          <div className="flex flex-col divide-y divide-border">
+            {sortedQuizzes.map((quiz) => {
+              const attempt = attemptByQuizId[quiz.id];
+              return (
+                <div key={quiz.id} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
+                  <div>
+                    <div className="text-sm font-medium text-ink">{quiz.title}</div>
+                    <div className="mt-0.5 text-xs text-ink-muted">{quiz.subjectName}</div>
+                  </div>
+                  {attempt ? (
+                    <span className="font-mono text-sm text-ink-secondary">
+                      Attempted —{" "}
+                      {attempt.rescaleToTen
+                        ? `${attempt.rescaledScore.toFixed(1)}/10`
+                        : `${attempt.rawScore}/${attempt.totalPossibleMarks}`}
+                    </span>
+                  ) : (
+                    <Link to={`/quizzes/${quiz.id}`} className={rowActionClass}>
+                      Take quiz
+                    </Link>
+                  )}
                 </div>
-                {attempt ? (
-                  <span className="font-mono text-sm text-slate">
-                    Attempted —{" "}
-                    {attempt.rescaleToTen
-                      ? `${attempt.rescaledScore.toFixed(1)}/10`
-                      : `${attempt.rawScore}/${attempt.totalPossibleMarks}`}
-                  </span>
-                ) : (
-                  <Link to={`/quizzes/${quiz.id}`} className={rowActionClass}>
-                    Take quiz
-                  </Link>
-                )}
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        </Card>
       )}
     </div>
   );
@@ -172,10 +175,10 @@ function QuizAttempt({ quizId }) {
   if (loading) {
     return (
       <div>
-        <div className="mb-6 border-b border-brass/20 pb-4">
+        <div className="mb-6">
           <h1 className="font-display text-2xl font-semibold text-ink">Quiz</h1>
         </div>
-        <p className="text-sm text-slate">Loading…</p>
+        <p className="text-sm text-ink-secondary">Loading…</p>
       </div>
     );
   }
@@ -183,10 +186,10 @@ function QuizAttempt({ quizId }) {
   if (loadError) {
     return (
       <div>
-        <div className="mb-6 border-b border-brass/20 pb-4">
+        <div className="mb-6">
           <h1 className="font-display text-2xl font-semibold text-ink">Quiz</h1>
         </div>
-        <p className="text-sm text-oxblood">{loadError}</p>
+        <p className="text-sm text-danger">{loadError}</p>
       </div>
     );
   }
@@ -195,60 +198,64 @@ function QuizAttempt({ quizId }) {
 
   return (
     <div>
-      <div className="mb-6 border-b border-brass/20 pb-4">
+      <div className="mb-6">
         <Link to="/quizzes" className={rowActionClass}>
           ← Back to quizzes
         </Link>
         <h1 className="mt-2 font-display text-2xl font-semibold text-ink">{quiz.title}</h1>
-        <p className="mt-1 text-xs text-slate">{quiz.subjectName}</p>
+        <p className="mt-1 text-xs text-ink-muted">{quiz.subjectName}</p>
       </div>
 
       {finished ? (
-        <div className="border-b border-brass/20 py-4">
+        <Card>
           <p className="text-sm text-ink">
             You scored{" "}
-            <span className="font-mono text-ink">
+            <span className="font-mono font-semibold text-accent">
               {finished.rescaleToTen
                 ? `${finished.rescaledScore.toFixed(1)}/10`
                 : `${finished.rawScore}/${finished.totalPossibleMarks}`}
             </span>
             .
           </p>
-        </div>
+        </Card>
       ) : (
-        <form onSubmit={handleSubmit} className="flex max-w-2xl flex-col gap-0">
-          {quiz.questions.map((question, qIndex) => (
-            <div key={question.id} className="border-b border-brass/20 py-5">
-              <p className="mb-3 text-sm text-ink">
-                {qIndex + 1}. {question.text}
-              </p>
-              <div className="flex flex-col gap-2.5 pl-1">
-                {question.options.map((option, oIndex) => (
-                  <label key={oIndex} className="flex items-center gap-3 text-sm text-ink">
-                    <input
-                      type="radio"
-                      name={`question-${question.id}`}
-                      checked={answers[question.id] === oIndex}
-                      onChange={() => selectAnswer(question.id, oIndex)}
-                      className="accent-oxblood"
-                    />
-                    {option}
-                  </label>
-                ))}
-              </div>
+        <Card className="max-w-2xl">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-0">
+            <div className="flex flex-col divide-y divide-border">
+              {quiz.questions.map((question, qIndex) => (
+                <div key={question.id} className="py-5 first:pt-0 last:pb-0">
+                  <p className="mb-3 text-sm text-ink">
+                    {qIndex + 1}. {question.text}
+                  </p>
+                  <div className="flex flex-col gap-2.5 pl-1">
+                    {question.options.map((option, oIndex) => (
+                      <label key={oIndex} className="flex items-center gap-3 text-sm text-ink">
+                        <input
+                          type="radio"
+                          name={`question-${question.id}`}
+                          checked={answers[question.id] === oIndex}
+                          onChange={() => selectAnswer(question.id, oIndex)}
+                          className="accent-accent"
+                        />
+                        {option}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
 
-          {submitError && <p className="mt-4 text-sm text-oxblood">{submitError}</p>}
+            {submitError && <p className="mt-4 text-sm text-danger">{submitError}</p>}
 
-          <button
-            type="submit"
-            disabled={!allAnswered || submitting}
-            className={`${primaryButtonClass} mt-6`}
-          >
-            {submitting ? "Submitting…" : "Submit answers"}
-          </button>
-        </form>
+            <button
+              type="submit"
+              disabled={!allAnswered || submitting}
+              className={`${primaryButtonClass} mt-6`}
+            >
+              {submitting ? "Submitting…" : "Submit answers"}
+            </button>
+          </form>
+        </Card>
       )}
     </div>
   );
